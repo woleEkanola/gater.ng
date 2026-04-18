@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { LogoutButton } from "@/components/logout-button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -186,6 +187,7 @@ export default function AdminDashboard() {
             <Link href="/dashboard" className="text-sm font-medium hover:text-rose-600">
               Organizer Dashboard
             </Link>
+            <LogoutButton />
           </nav>
         </div>
       </header>

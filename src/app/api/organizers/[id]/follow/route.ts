@@ -5,8 +5,9 @@ import { authOptions } from "@/lib/auth";
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const session = await getServerSession(authOptions);
     
@@ -14,7 +15,7 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (session.user.id === params.id) {
+    if (session.user.id === id) {
       return NextResponse.json({ error: "Cannot follow yourself" }, { status: 400 });
     }
 
@@ -22,7 +23,7 @@ export async function POST(
       where: {
         followerId_followingId: {
           followerId: session.user.id,
-          followingId: params.id,
+          followingId: id,
         },
       },
     });
@@ -36,7 +37,7 @@ export async function POST(
       await prisma.follow.create({
         data: {
           followerId: session.user.id,
-          followingId: params.id,
+          followingId: id,
         },
       });
       return NextResponse.json({ isFollowing: true });

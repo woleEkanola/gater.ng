@@ -5,11 +5,12 @@ import prisma from "@/lib/prisma";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
+  const { slug } = await params;
   try {
     let event = await prisma.event.findUnique({
-      where: { slug: params.slug },
+      where: { slug: slug },
       include: {
         organizer: { select: { id: true, name: true, email: true } },
         ticketTypes: true,
@@ -18,7 +19,7 @@ export async function GET(
 
     if (!event) {
       event = await prisma.event.findUnique({
-        where: { id: params.slug },
+        where: { id: slug },
         include: {
           organizer: { select: { id: true, name: true, email: true } },
           ticketTypes: true,
@@ -39,8 +40,9 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
+  const { slug } = await params;
   try {
     const session = await getServerSession(authOptions);
 
@@ -49,7 +51,7 @@ export async function PUT(
     }
 
     const event = await prisma.event.findUnique({
-      where: { id: params.slug },
+      where: { id: slug },
     });
 
     if (!event) {
@@ -68,7 +70,7 @@ export async function PUT(
     const { title, description, banner, location, dateTime, isPublished } = body;
 
     const updatedEvent = await prisma.event.update({
-      where: { id: params.slug },
+      where: { id: slug },
       data: {
         ...(title && { title }),
         ...(description !== undefined && { description }),
@@ -92,8 +94,9 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
+  const { slug } = await params;
   try {
     const session = await getServerSession(authOptions);
 
@@ -102,7 +105,7 @@ export async function DELETE(
     }
 
     const event = await prisma.event.findUnique({
-      where: { id: params.slug },
+      where: { id: slug },
     });
 
     if (!event) {
@@ -117,7 +120,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    await prisma.event.delete({ where: { id: params.slug } });
+    await prisma.event.delete({ where: { id: slug } });
 
     return NextResponse.json({ message: "Event deleted successfully" });
   } catch (error) {

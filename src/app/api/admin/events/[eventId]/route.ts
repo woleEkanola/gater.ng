@@ -10,8 +10,9 @@ function checkAdmin(user: any) {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
+  const { eventId } = await params;
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
@@ -29,7 +30,7 @@ export async function POST(
     const { featured } = await request.json();
 
     await prisma.event.update({
-      where: { id: params.eventId },
+      where: { id: eventId },
       data: { isFeatured: featured },
     });
 
@@ -42,8 +43,9 @@ export async function POST(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
+  const { eventId } = await params;
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
@@ -59,7 +61,7 @@ export async function DELETE(
     }
 
     await prisma.event.delete({
-      where: { id: params.eventId },
+      where: { id: eventId },
     });
 
     return NextResponse.json({ success: true });

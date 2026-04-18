@@ -5,11 +5,12 @@ import { authOptions } from "@/lib/auth";
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const organizer = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       select: {
         id: true,
         name: true,
@@ -62,7 +63,7 @@ export async function GET(
         where: {
           followerId_followingId: {
             followerId: session.user.id,
-            followingId: params.id,
+            followingId: id,
           },
         },
       });
