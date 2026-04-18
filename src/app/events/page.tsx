@@ -137,11 +137,11 @@ function EventsContent() {
             Gater.ng
           </Link>
           <nav className="flex items-center gap-4">
-            <Link href="/login" className="text-sm font-medium hover:text-primary">
+            <Link href="/auth-route/login" className="text-sm font-medium hover:text-primary">
               Login
             </Link>
             <Link
-              href="/register"
+              href="/auth-route/register"
               className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90"
             >
               Get Started

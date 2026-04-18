@@ -58,6 +58,7 @@ export async function GET(request: NextRequest) {
           } 
         },
         ticketTypes: true,
+        tags: true,
         _count: { select: { orders: true } },
       },
       orderBy: { dateTime: "asc" },
@@ -114,7 +115,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { 
       title, description, banner, location, dateTime, isPublished,
-      isOnline, streamingLink, category, targetAudience
+      isOnline, streamingLink, category, targetAudience, tagIds
     } = body;
 
     if (!title || !dateTime) {
@@ -155,10 +156,12 @@ export async function POST(request: NextRequest) {
         streamingLink,
         category,
         targetAudience,
+        tags: tagIds?.length ? { connect: tagIds.map((id: string) => ({ id })) } : undefined,
       },
       include: {
         organizer: { select: { id: true, name: true, email: true } },
         ticketTypes: true,
+        tags: true,
       },
     });
 

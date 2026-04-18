@@ -8,7 +8,16 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params;
+
+  console.log("[API /events/[slug]] GET - slug param:", slug, "type:", typeof slug);
+
+  if (!slug || slug === "undefined" || slug === "null") {
+    console.log("[API /events/[slug]] GET - invalid slug, returning 400");
+    return NextResponse.json({ error: "Invalid event identifier" }, { status: 400 });
+  }
+
   try {
+    console.log("[API /events/[slug]] GET - querying by slug:", slug);
     let event = await prisma.event.findUnique({
       where: { slug: slug },
       include: {
@@ -18,6 +27,7 @@ export async function GET(
     });
 
     if (!event) {
+      console.log("[API /events/[slug]] GET - not found by slug, trying by id:", slug);
       event = await prisma.event.findUnique({
         where: { id: slug },
         include: {
@@ -28,12 +38,14 @@ export async function GET(
     }
 
     if (!event) {
+      console.log("[API /events/[slug]] GET - event not found, returning 404");
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
 
+    console.log("[API /events/[slug]] GET - event found:", event.id, event.slug, event.title);
     return NextResponse.json(event);
   } catch (error) {
-    console.error("Error fetching event:", error);
+    console.error("[API /events/[slug]] GET - error:", error);
     return NextResponse.json({ error: "Failed to fetch event" }, { status: 500 });
   }
 }

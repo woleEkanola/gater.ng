@@ -14,11 +14,11 @@ export default function OrganizerPage() {
             <Link href="/events" className="text-sm font-medium hover:text-rose-600">
               Discover Events
             </Link>
-            <Link href="/login" className="text-sm font-medium hover:text-rose-600">
+            <Link href="/auth-route/login" className="text-sm font-medium hover:text-rose-600">
               Login
             </Link>
             <Link
-              href="/register"
+              href="/auth-route/register"
               className="px-4 py-2 bg-rose-600 text-white rounded-md text-sm font-medium hover:bg-rose-700"
             >
               Get Started
@@ -39,7 +39,7 @@ export default function OrganizerPage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
-              href="/register"
+              href="/auth-route/register"
               className="px-8 py-3 bg-rose-600 text-white rounded-md font-medium hover:bg-rose-700 inline-flex items-center justify-center gap-2"
             >
               Start Selling Tickets Free
@@ -154,7 +154,7 @@ export default function OrganizerPage() {
                 </li>
               </ul>
               <Link
-                href="/register"
+                href="/auth-route/register"
                 className="block w-full py-3 bg-rose-600 text-white text-center rounded-md font-medium hover:bg-rose-700"
               >
                 Create Free Account
@@ -171,7 +171,7 @@ export default function OrganizerPage() {
             Join thousands of organizers already using Gater.ng
           </p>
           <Link
-            href="/register"
+            href="/auth-route/register"
             className="px-8 py-3 bg-rose-600 text-white rounded-md font-medium hover:bg-rose-700 inline-block"
           >
             Get Started Free

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
@@ -15,7 +15,9 @@ import { useToast } from "@/components/ui/use-toast";
 import { formatCurrency } from "@/lib/utils";
 import { CopyLinkButton } from "@/components/copy-link-button";
 import { ImageUpload } from "@/components/ui/upload-button";
-import { Download, Users, DollarSign, Ticket, Link as LinkIcon, Image, Pencil, Globe, Tag, Trash2, Plus, Percent, HelpCircle } from "lucide-react";
+import { SpeakerImageUpload } from "@/components/ui/speaker-image-upload";
+import { GalleryUpload } from "@/components/ui/gallery-upload";
+import { Download, Users, DollarSign, Ticket, Link as LinkIcon, Image, Pencil, Globe, Tag, Trash2, Plus, Percent, HelpCircle, Eye, EyeOff } from "lucide-react";
 
 const ticketTypeSchema = z.object({
   name: z.string().min(1, "Ticket name is required"),
@@ -27,7 +29,8 @@ const ticketTypeSchema = z.object({
 
 type TicketTypeFormData = z.infer<typeof ticketTypeSchema>;
 
-export default function ManageEventPage({ params }: { params: { id: string } }) {
+export default function ManageEventPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: eventId } = use(params);
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -45,8 +48,10 @@ export default function ManageEventPage({ params }: { params: { id: string } }) 
   const [editedDateTime, setEditedDateTime] = useState("");
   const [editedIsOnline, setEditedIsOnline] = useState(false);
   const [editedStreamingLink, setEditedStreamingLink] = useState("");
+  const [editedAccessInstructions, setEditedAccessInstructions] = useState("");
   const [editedCategory, setEditedCategory] = useState("");
   const [editedTargetAudience, setEditedTargetAudience] = useState("");
+  const [editedSpeakerLabel, setEditedSpeakerLabel] = useState("");
   const [discountCodes, setDiscountCodes] = useState<any[]>([]);
   const [showDiscountForm, setShowDiscountForm] = useState(false);
   const [savingDiscount, setSavingDiscount] = useState(false);
@@ -57,15 +62,15 @@ export default function ManageEventPage({ params }: { params: { id: string } }) 
 
   useEffect(() => {
     async function fetchDiscountCodes() {
-      if (!params.id) return;
-      const res = await fetch(`/api/discount-codes?eventId=${params.id}`);
+      if (!eventId) return;
+      const res = await fetch(`/api/discount-codes?eventId=${eventId}`);
       if (res.ok) {
         const data = await res.json();
         setDiscountCodes(data);
       }
     }
     fetchDiscountCodes();
-  }, [params.id]);
+  }, [eventId]);
 
   const handleCreateDiscountCode = async () => {
     if (!newDiscountCode) return;
@@ -75,7 +80,7 @@ export default function ManageEventPage({ params }: { params: { id: string } }) 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          eventId: params.id,
+          eventId: eventId,
           code: newDiscountCode,
           discountType: newDiscountType,
           discountValue: newDiscountType === "percentage" ? newDiscountValue * 100 : newDiscountValue * 100,
@@ -120,17 +125,39 @@ export default function ManageEventPage({ params }: { params: { id: string } }) 
   const [newFaqAnswer, setNewFaqAnswer] = useState("");
   const [savingFaq, setSavingFaq] = useState(false);
 
+  const [speakers, setSpeakers] = useState<any[]>([]);
+  const [showSpeakerForm, setShowSpeakerForm] = useState(false);
+  const [showGalleryForm, setShowGalleryForm] = useState(false);
+  const [newSpeakerName, setNewSpeakerName] = useState("");
+  const [newSpeakerTitle, setNewSpeakerTitle] = useState("");
+  const [newSpeakerCompany, setNewSpeakerCompany] = useState("");
+  const [newSpeakerBio, setNewSpeakerBio] = useState("");
+  const [newSpeakerImage, setNewSpeakerImage] = useState("");
+  const [editingSpeakerId, setEditingSpeakerId] = useState<string | null>(null);
+  const [savingSpeaker, setSavingSpeaker] = useState(false);
+
+  const [galleryImages, setGalleryImages] = useState<any[]>([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const [editedContactEmail, setEditedContactEmail] = useState("");
+  const [editedContactPhone, setEditedContactPhone] = useState("");
+  const [editedWebsiteUrl, setEditedWebsiteUrl] = useState("");
+  const [editedTwitterUrl, setEditedTwitterUrl] = useState("");
+  const [editedFacebookUrl, setEditedFacebookUrl] = useState("");
+  const [editedInstagramUrl, setEditedInstagramUrl] = useState("");
+  const [editedYoutubeUrl, setEditedYoutubeUrl] = useState("");
+
   useEffect(() => {
     async function fetchFaqs() {
-      if (!params.id) return;
-      const res = await fetch(`/api/faqs?eventId=${params.id}`);
+      if (!eventId) return;
+      const res = await fetch(`/api/faqs?eventId=${eventId}&includeHidden=true`);
       if (res.ok) {
         const data = await res.json();
         setFaqs(data);
       }
     }
     fetchFaqs();
-  }, [params.id]);
+  }, [eventId]);
 
   const handleCreateFaq = async () => {
     if (!newFaqQuestion || !newFaqAnswer) return;
@@ -140,7 +167,7 @@ export default function ManageEventPage({ params }: { params: { id: string } }) 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          eventId: params.id,
+          eventId: eventId,
           question: newFaqQuestion,
           answer: newFaqAnswer,
         }),
@@ -176,6 +203,213 @@ export default function ManageEventPage({ params }: { params: { id: string } }) 
     }
   };
 
+  useEffect(() => {
+    async function fetchSpeakers() {
+      if (!eventId) return;
+      const res = await fetch(`/api/speakers?eventId=${eventId}&includeHidden=true`);
+      if (res.ok) {
+        const data = await res.json();
+        setSpeakers(data);
+      }
+    }
+    fetchSpeakers();
+  }, [eventId]);
+
+  useEffect(() => {
+    async function fetchGallery() {
+      if (!eventId) return;
+      const res = await fetch(`/api/gallery?eventId=${eventId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setGalleryImages(data);
+      }
+    }
+    fetchGallery();
+  }, [eventId]);
+
+  const handleUploadImage = async (files: FileList) => {
+    if (!files || files.length === 0) return;
+    setUploadingImage(true);
+    try {
+      for (const file of Array.from(files)) {
+        const formData = new FormData();
+        formData.append("file", file);
+        const uploadRes = await fetch("/api/upload/gallery", {
+          method: "POST",
+          body: formData,
+        });
+        const data = await uploadRes.json();
+        
+        if (data.url) {
+          const saveRes = await fetch("/api/gallery", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ eventId, image: data.url }),
+          });
+          if (saveRes.ok) {
+            const gallery = await saveRes.json();
+            setGalleryImages([...galleryImages, gallery]);
+          }
+        }
+      }
+      toast({ title: "Success", description: "Images uploaded" });
+    } catch {
+      toast({ title: "Error", description: "Failed to upload", variant: "destructive" });
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleDeleteGallery = async (id: string) => {
+    if (!confirm("Delete this image?")) return;
+    try {
+      const res = await fetch(`/api/gallery?id=${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setGalleryImages(galleryImages.filter((g: any) => g.id !== id));
+        toast({ title: "Success", description: "Image deleted" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to delete", variant: "destructive" });
+    }
+  };
+
+  const handleUploadSpeakerImage = async (file: File) => {
+    if (!file) return;
+    setSavingSpeaker(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const uploadRes = await fetch("/api/upload/speaker", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await uploadRes.json();
+      if (data.url) {
+        setNewSpeakerImage(data.url);
+        toast({ title: "Success", description: "Image uploaded" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to upload", variant: "destructive" });
+    } finally {
+      setSavingSpeaker(false);
+    }
+  };
+
+  const handleCreateSpeaker = async () => {
+    if (!newSpeakerName) return;
+    setSavingSpeaker(true);
+    try {
+      const method = editingSpeakerId ? "PUT" : "POST";
+      const body = editingSpeakerId 
+        ? JSON.stringify({
+            id: editingSpeakerId,
+            name: newSpeakerName,
+            title: newSpeakerTitle,
+            company: newSpeakerCompany,
+            bio: newSpeakerBio,
+            image: newSpeakerImage,
+          })
+        : JSON.stringify({
+            eventId: eventId,
+            name: newSpeakerName,
+            title: newSpeakerTitle,
+            company: newSpeakerCompany,
+            bio: newSpeakerBio,
+            image: newSpeakerImage,
+          });
+      
+      const res = await fetch("/api/speakers", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body,
+      });
+      if (res.ok) {
+        const speaker = await res.json();
+        if (editingSpeakerId) {
+          setSpeakers(speakers.map(s => s.id === editingSpeakerId ? speaker : s));
+        } else {
+          setSpeakers([...speakers, speaker]);
+        }
+        setNewSpeakerName("");
+        setNewSpeakerTitle("");
+        setNewSpeakerCompany("");
+        setNewSpeakerBio("");
+        setNewSpeakerImage("");
+        setEditingSpeakerId(null);
+        setShowSpeakerForm(false);
+        toast({ title: "Success", description: editingSpeakerId ? "Speaker updated" : "Speaker added" });
+      } else {
+        const err = await res.json();
+        toast({ title: "Error", description: err.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Something went wrong", variant: "destructive" });
+    } finally {
+      setSavingSpeaker(false);
+    }
+  };
+
+  const handleDeleteSpeaker = async (speakerId: string) => {
+    if (!confirm("Are you sure you want to delete this speaker?")) return;
+    try {
+      const res = await fetch(`/api/speakers?id=${speakerId}`, { method: "DELETE" });
+      if (res.ok) {
+        setSpeakers(speakers.filter(s => s.id !== speakerId));
+        toast({ title: "Success", description: "Speaker deleted" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to delete", variant: "destructive" });
+    }
+  };
+
+  const handleToggleSpeakerVisibility = async (speakerId: string, currentVisibility: boolean) => {
+    try {
+      const res = await fetch("/api/speakers", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: speakerId, name: speakers.find(s => s.id === speakerId)?.name || "", isVisible: !currentVisibility }),
+      });
+      if (res.ok) {
+        setSpeakers(speakers.map(s => s.id === speakerId ? { ...s, isVisible: !currentVisibility } : s));
+        toast({ title: "Success", description: !currentVisibility ? "Speaker now visible" : "Speaker now hidden" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to toggle visibility", variant: "destructive" });
+    }
+  };
+
+  const handleToggleFaqVisibility = async (faqId: string, currentVisibility: boolean) => {
+    try {
+      const res = await fetch("/api/faqs", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: faqId, isVisible: !currentVisibility }),
+      });
+      if (res.ok) {
+        setFaqs(faqs.map(f => f.id === faqId ? { ...f, isVisible: !currentVisibility } : f));
+        toast({ title: "Success", description: !currentVisibility ? "FAQ now visible" : "FAQ now hidden" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to toggle visibility", variant: "destructive" });
+    }
+  };
+
+  const handleToggleAllFaqs = async (showAll: boolean) => {
+    try {
+      const res = await fetch("/api/faqs", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId, isVisible: showAll, showAll: true }),
+      });
+      if (res.ok) {
+        setFaqs(faqs.map(f => ({ ...f, isVisible: showAll })));
+        toast({ title: "Success", description: showAll ? "All FAQs now visible" : "All FAQs now hidden" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to toggle visibility", variant: "destructive" });
+    }
+  };
+
   const startEditingDetails = () => {
     setEditedTitle(event.title || "");
     setEditedDescription(event.description || "");
@@ -183,15 +417,24 @@ export default function ManageEventPage({ params }: { params: { id: string } }) 
     setEditedDateTime(event.dateTime ? new Date(event.dateTime).toISOString().slice(0, 16) : "");
     setEditedIsOnline(event.isOnline || false);
     setEditedStreamingLink(event.streamingLink || "");
+    setEditedAccessInstructions(event.accessInstructions || "");
     setEditedCategory(event.category || "");
     setEditedTargetAudience(event.targetAudience || "");
+    setEditedSpeakerLabel(event.speakerLabel || "");
+    setEditedContactEmail(event.contactEmail || "");
+    setEditedContactPhone(event.contactPhone || "");
+    setEditedWebsiteUrl(event.websiteUrl || "");
+    setEditedTwitterUrl(event.twitterUrl || "");
+    setEditedFacebookUrl(event.facebookUrl || "");
+    setEditedInstagramUrl(event.instagramUrl || "");
+    setEditedYoutubeUrl(event.youtubeUrl || "");
     setIsEditingDetails(true);
   };
 
   const saveEventDetails = async () => {
     setSavingDetails(true);
     try {
-      const res = await fetch(`/api/events/${params.id}`, {
+      const res = await fetch(`/api/events/${eventId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -201,8 +444,17 @@ export default function ManageEventPage({ params }: { params: { id: string } }) 
           dateTime: editedDateTime ? new Date(editedDateTime).toISOString() : null,
           isOnline: editedIsOnline,
           streamingLink: editedIsOnline ? editedStreamingLink : null,
+          accessInstructions: editedIsOnline ? editedAccessInstructions : null,
           category: editedCategory,
           targetAudience: editedTargetAudience,
+          speakerLabel: editedSpeakerLabel,
+          contactEmail: editedContactEmail,
+          contactPhone: editedContactPhone,
+          websiteUrl: editedWebsiteUrl,
+          twitterUrl: editedTwitterUrl,
+          facebookUrl: editedFacebookUrl,
+          instagramUrl: editedInstagramUrl,
+          youtubeUrl: editedYoutubeUrl,
         }),
       });
       const result = await res.json();
@@ -218,6 +470,7 @@ export default function ManageEventPage({ params }: { params: { id: string } }) 
         dateTime: result.dateTime,
         isOnline: editedIsOnline,
         streamingLink: editedStreamingLink,
+        accessInstructions: editedAccessInstructions,
         category: editedCategory,
         targetAudience: editedTargetAudience,
       });
@@ -262,9 +515,9 @@ export default function ManageEventPage({ params }: { params: { id: string } }) 
     async function fetchData() {
       try {
         const [eventRes, typesRes, attendeesRes] = await Promise.all([
-          fetch(`/api/events/${params.id}`),
-          fetch(`/api/ticket-types?eventId=${params.id}`),
-          fetch(`/api/attendees?eventId=${params.id}`),
+          fetch(`/api/events/${eventId}`),
+          fetch(`/api/ticket-types?eventId=${eventId}`),
+          fetch(`/api/attendees?eventId=${eventId}`),
         ]);
         const eventData = await eventRes.json();
         const typesData = await typesRes.json();
@@ -279,7 +532,7 @@ export default function ManageEventPage({ params }: { params: { id: string } }) 
       }
     }
     fetchData();
-  }, [params.id]);
+  }, [eventId]);
 
   const onSubmitTicketType = async (data: TicketTypeFormData) => {
     setIsLoading(true);
@@ -287,7 +540,7 @@ export default function ManageEventPage({ params }: { params: { id: string } }) 
       const res = await fetch("/api/ticket-types", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, eventId: params.id }),
+        body: JSON.stringify({ ...data, eventId: eventId }),
       });
 
       const result = await res.json();
@@ -307,6 +560,24 @@ export default function ManageEventPage({ params }: { params: { id: string } }) 
     }
   };
 
+  const updateTicketPrice = async (ticketTypeId: string, newPrice: number) => {
+    try {
+      const res = await fetch("/api/ticket-types", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: ticketTypeId, price: newPrice }),
+      });
+      if (res.ok) {
+        setTicketTypes(ticketTypes.map(tt => 
+          tt.id === ticketTypeId ? { ...tt, price: newPrice } : tt
+        ));
+        toast({ title: "Success", description: "Price updated" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to update price", variant: "destructive" });
+    }
+  };
+
   const onLogSale = async (data: SaleFormData) => {
     setLoggingSale(true);
     try {
@@ -314,7 +585,7 @@ export default function ManageEventPage({ params }: { params: { id: string } }) 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          eventId: params.id,
+          eventId: eventId,
           ticketTypeId: data.ticketTypeId,
           quantity: data.quantity,
           buyerName: data.buyerName,
@@ -333,7 +604,7 @@ export default function ManageEventPage({ params }: { params: { id: string } }) 
       resetSaleForm();
       toast({ title: "Success", description: `Logged ${data.quantity} ticket(s) sale` });
       
-      const attendeesRes = await fetch(`/api/attendees?eventId=${params.id}`);
+      const attendeesRes = await fetch(`/api/attendees?eventId=${eventId}`);
       const attendeesData = await attendeesRes.json();
       setAttendees(attendeesData);
     } catch {
@@ -346,7 +617,7 @@ export default function ManageEventPage({ params }: { params: { id: string } }) 
   const handleBannerChange = async (bannerUrl: string) => {
     setUploadingBanner(true);
     try {
-      const res = await fetch(`/api/events/${params.id}`, {
+      const res = await fetch(`/api/events/${eventId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ banner: bannerUrl }),
@@ -428,6 +699,12 @@ export default function ManageEventPage({ params }: { params: { id: string } }) 
                     onChange={(e) => setEditedStreamingLink(e.target.value)}
                     placeholder="https://zoom.us/..."
                   />
+                  <Label className="mt-4">Access Instructions</Label>
+                  <Input
+                    value={editedAccessInstructions}
+                    onChange={(e) => setEditedAccessInstructions(e.target.value)}
+                    placeholder="Instructions for attendees (e.g., Link will be sent 1 hour before)"
+                  />
                 </div>
               ) : (
                 <div>
@@ -471,6 +748,14 @@ export default function ManageEventPage({ params }: { params: { id: string } }) 
                     placeholder="Target audience"
                   />
                 </div>
+                <div>
+                  <Label>Speaker Label</Label>
+                  <Input
+                    value={editedSpeakerLabel}
+                    onChange={(e) => setEditedSpeakerLabel(e.target.value)}
+                    placeholder="e.g., Speakers, Guests, Panelists (default: Speakers)"
+                  />
+                </div>
               </div>
               <div className="flex gap-2">
                 <Button onClick={saveEventDetails} disabled={savingDetails}>
@@ -485,7 +770,7 @@ export default function ManageEventPage({ params }: { params: { id: string } }) 
             <div className="space-y-4">
               <div className="flex items-start justify-between">
                 <div>
-                  <h1 className="text-2xl font-bold mb-2">{event?.title || `Event ID: ${params.id}`}</h1>
+                  <h1 className="text-2xl font-bold mb-2">{event?.title || `Event ID: ${eventId}`}</h1>
                   {event?.description && (
                     <p className="text-muted-foreground">{event.description}</p>
                   )}
@@ -691,16 +976,44 @@ export default function ManageEventPage({ params }: { params: { id: string } }) 
                 <p className="text-muted-foreground">No FAQs yet</p>
               ) : (
                 <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">{faqs.filter(f => f.isVisible).length} of {faqs.length} visible</p>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => handleToggleAllFaqs(false)}>
+                        Hide All
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => handleToggleAllFaqs(true)}>
+                        Show All
+                      </Button>
+                    </div>
+                  </div>
                   {faqs.map((faq) => (
-                    <div key={faq.id} className="border rounded-lg p-4">
+                    <div key={faq.id} className={`border rounded-lg p-4 ${faq.isVisible === false ? "opacity-50" : ""}`}>
                       <div className="flex justify-between items-start gap-2">
-                        <div>
+                        <div className="flex-1">
                           <p className="font-medium">{faq.question}</p>
                           <p className="text-sm text-muted-foreground mt-1">{faq.answer}</p>
+                          <p className="text-xs text-muted-foreground mt-2">
+                            {faq.isVisible ? "Visible" : "Hidden"}
+                          </p>
                         </div>
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteFaq(faq.id)}>
-                          <Trash2 className="w-4 h-4 text-red-500" />
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleToggleFaqVisibility(faq.id, faq.isVisible)}
+                            title={faq.isVisible ? "Hide" : "Show"}
+                          >
+                            {faq.isVisible ? (
+                              <EyeOff className="w-4 h-4" />
+                            ) : (
+                              <Eye className="w-4 h-4" />
+                            )}
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleDeleteFaq(faq.id)}>
+                            <Trash2 className="w-4 h-4 text-red-500" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -709,6 +1022,258 @@ export default function ManageEventPage({ params }: { params: { id: string } }) 
             </CardContent>
           </Card>
         )}
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Speakers</CardTitle>
+              <Button size="sm" onClick={() => setShowSpeakerForm(!showSpeakerForm)}>
+                {showSpeakerForm ? "Cancel" : "Add Speaker"}
+              </Button>
+            </div>
+          </CardHeader>
+          {showSpeakerForm && (
+            <CardContent>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Name *</Label>
+                    <Input value={newSpeakerName} onChange={(e) => setNewSpeakerName(e.target.value)} placeholder="Name" />
+                  </div>
+                  <div>
+                    <Label>Title</Label>
+                    <Input value={newSpeakerTitle} onChange={(e) => setNewSpeakerTitle(e.target.value)} placeholder="e.g., CEO, Speaker" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Company</Label>
+                    <Input value={newSpeakerCompany} onChange={(e) => setNewSpeakerCompany(e.target.value)} placeholder="Company" />
+                  </div>
+                </div>
+                <div>
+                  <SpeakerImageUpload
+                    value={newSpeakerImage}
+                    onChange={setNewSpeakerImage}
+                    loading={savingSpeaker}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Click to upload speaker photo</p>
+                </div>
+                <div>
+                  <Label>Bio</Label>
+                  <Textarea value={newSpeakerBio} onChange={(e) => setNewSpeakerBio(e.target.value)} placeholder="Bio" />
+                </div>
+                <Button onClick={handleCreateSpeaker} disabled={savingSpeaker}>
+                  {savingSpeaker ? "Saving..." : editingSpeakerId ? "Update Speaker" : "Add Speaker"}
+                </Button>
+                {editingSpeakerId && (
+                  <Button variant="outline" onClick={() => {
+                    setEditingSpeakerId(null);
+                    setNewSpeakerName("");
+                    setNewSpeakerTitle("");
+                    setNewSpeakerCompany("");
+                    setNewSpeakerBio("");
+                    setNewSpeakerImage("");
+                    setShowSpeakerForm(false);
+                  }}>
+                    Cancel
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          )}
+
+          <CardContent>
+            {speakers.length === 0 ? (
+              <p className="text-muted-foreground">No speakers yet</p>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">{speakers.filter(s => s.isVisible).length} of {speakers.length} visible</p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => {
+                      speakers.forEach(s => handleToggleSpeakerVisibility(s.id, false));
+                    }}>
+                      Hide All
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => {
+                      speakers.forEach(s => handleToggleSpeakerVisibility(s.id, true));
+                    }}>
+                      Show All
+                    </Button>
+                  </div>
+                </div>
+                {speakers.map((speaker) => (
+                  <div key={speaker.id} className={`border rounded-lg p-4 ${speaker.isVisible === false ? "opacity-50" : ""}`}>
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="flex-1">
+                        <p className="font-medium">{speaker.name}</p>
+                        {speaker.title && <p className="text-sm text-muted-foreground">{speaker.title}</p>}
+                        {speaker.company && <p className="text-sm text-muted-foreground">{speaker.company}</p>}
+                        <p className="text-xs text-muted-foreground mt-2">
+                          {speaker.isVisible ? "Visible" : "Hidden"}
+                        </p>
+                      </div>
+<div className="flex gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => {
+                              setEditingSpeakerId(speaker.id);
+                              setNewSpeakerName(speaker.name);
+                              setNewSpeakerTitle(speaker.title || "");
+                              setNewSpeakerCompany(speaker.company || "");
+                              setNewSpeakerBio(speaker.bio || "");
+                              setNewSpeakerImage(speaker.image || "");
+                              setShowSpeakerForm(true);
+                            }}
+                            title="Edit"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleToggleSpeakerVisibility(speaker.id, speaker.isVisible)}
+                            title={speaker.isVisible ? "Hide" : "Show"}
+                          >
+                            {speaker.isVisible ? (
+                              <EyeOff className="w-4 h-4" />
+                            ) : (
+                              <Eye className="w-4 h-4" />
+                            )}
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleDeleteSpeaker(speaker.id)}>
+                            <Trash2 className="w-4 h-4 text-red-500" />
+                          </Button>
+                        </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Gallery</CardTitle>
+              <Button size="sm" onClick={() => setShowGalleryForm(!showGalleryForm)}>
+                {showGalleryForm ? "Cancel" : "Add Image"}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-2">
+              {galleryImages.map((img: any) => (
+                <div key={img.id} className="relative aspect-square bg-muted rounded-lg overflow-hidden">
+                  <img src={img.image} alt={img.caption || "Gallery"} className="w-full h-full object-cover" />
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-1 right-1 h-6 w-6"
+                    onClick={() => handleDeleteGallery(img.id)}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+            {showGalleryForm && (
+              <div className="mt-4">
+                <GalleryUpload
+                  onUpload={async (url) => {
+                    const saveRes = await fetch("/api/gallery", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ eventId, image: url }),
+                    });
+                    if (saveRes.ok) {
+                      const gallery = await saveRes.json();
+                      setGalleryImages([...galleryImages, gallery]);
+                      toast({ title: "Success", description: "Image uploaded" });
+                    }
+                  }}
+                  isUploading={uploadingImage}
+                />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Event Contacts & Social Links</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Contact Email</Label>
+                <Input 
+                  value={editedContactEmail || ""} 
+                  onChange={(e) => setEditedContactEmail(e.target.value)} 
+                  placeholder="contact@event.com"
+                />
+              </div>
+              <div>
+                <Label>Contact Phone</Label>
+                <Input 
+                  value={editedContactPhone || ""} 
+                  onChange={(e) => setEditedContactPhone(e.target.value)} 
+                  placeholder="+234..."
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Website URL</Label>
+              <Input 
+                value={editedWebsiteUrl || ""} 
+                onChange={(e) => setEditedWebsiteUrl(e.target.value)} 
+                placeholder="https://..."
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Twitter/X</Label>
+                <Input 
+                  value={editedTwitterUrl || ""} 
+                  onChange={(e) => setEditedTwitterUrl(e.target.value)} 
+                  placeholder="https://twitter.com/..."
+                />
+              </div>
+              <div>
+                <Label>Facebook</Label>
+                <Input 
+                  value={editedFacebookUrl || ""} 
+                  onChange={(e) => setEditedFacebookUrl(e.target.value)} 
+                  placeholder="https://facebook.com/..."
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Instagram</Label>
+                <Input 
+                  value={editedInstagramUrl || ""} 
+                  onChange={(e) => setEditedInstagramUrl(e.target.value)} 
+                  placeholder="https://instagram.com/..."
+                />
+              </div>
+              <div>
+                <Label>YouTube</Label>
+                <Input 
+                  value={editedYoutubeUrl || ""} 
+                  onChange={(e) => setEditedYoutubeUrl(e.target.value)} 
+                  placeholder="https://youtube.com/..."
+                />
+              </div>
+            </div>
+            <Button onClick={saveEventDetails} disabled={savingDetails}>
+              {savingDetails ? "Saving..." : "Save Contacts & Links"}
+            </Button>
+          </CardContent>
+        </Card>
 
         <div className="grid lg:grid-cols-2 gap-8">
           <Card>
@@ -774,6 +1339,21 @@ export default function ManageEventPage({ params }: { params: { id: string } }) 
                           {formatCurrency(tt.price)} • {tt.quantity} available • {tt.soldCount} sold
                         </p>
                       </div>
+                      {tt.soldCount === 0 && (
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => {
+                            const currentPrice = (tt.price / 100).toString();
+                            const newPrice = prompt("Enter new price (in Naira):", currentPrice);
+                            if (newPrice && !isNaN(Number(newPrice))) {
+                              updateTicketPrice(tt.id, Number(newPrice) * 100);
+                            }
+                          }}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -848,7 +1428,7 @@ export default function ManageEventPage({ params }: { params: { id: string } }) 
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => window.open(`/api/attendees?eventId=${params.id}&format=csv`, "_blank")}
+                onClick={() => window.open(`/api/attendees?eventId=${eventId}&format=csv`, "_blank")}
               >
                 <Download className="w-4 h-4 mr-2" />
                 Export CSV

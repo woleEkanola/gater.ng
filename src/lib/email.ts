@@ -76,7 +76,7 @@ export async function sendTicketEmail(data: TicketEmailData) {
 
   try {
     const result = await resend.emails.send({
-      from: "Gater.ng <tickets@gater.ng>",
+      from: "Gater.ng <tickets@eleto.online>",
       to: email,
       subject: `🎫 Your Ticket for ${eventTitle}`,
       html: htmlContent,
@@ -94,8 +94,23 @@ export async function sendBulkTicketEmails(tickets: TicketEmailData[]) {
   return results;
 }
 
-export async function sendPasswordResetEmail(email: string, token: string) {
-  const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "http://localhost:3000"}/reset-password?token=${token}`;
+export async function sendPasswordResetEmail(email: string, token: string, purpose: "reset-password" | "set-password" = "reset-password") {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
+  const setPasswordUrl = `${baseUrl}/auth-route/reset-password?token=${token}`;
+
+  let subject, title, buttonBg, buttonText;
+  
+  if (purpose === "set-password") {
+    subject = "🔗 Complete Your Account Setup - Gater.ng";
+    title = "🎉 Complete Your Account Setup";
+    buttonBg = "#4f46e5";
+    buttonText = "Set Password";
+  } else {
+    subject = "🔐 Reset Your Password - Gater.ng";
+    title = "🔐 Reset Your Password";
+    buttonBg = "#f43f5e";
+    buttonText = "Reset Password";
+  }
 
   const htmlContent = `
 <!DOCTYPE html>
@@ -106,22 +121,25 @@ export async function sendPasswordResetEmail(email: string, token: string) {
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f9fafb; padding: 20px;">
   <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-    <div style="background-color: #f43f5e; padding: 30px; text-align: center;">
-      <h1 style="color: #ffffff; margin: 0; font-size: 28px;">🔐 Reset Your Password</h1>
+    <div style="background-color: ${buttonBg}; padding: 30px; text-align: center;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 28px;">${title}</h1>
     </div>
     
     <div style="padding: 30px;">
       <p style="color: #374151; font-size: 16px;">Hello,</p>
-      <p style="color: #374151; font-size: 16px;">We received a request to reset your password. Click the button below to create a new password:</p>
+      ${purpose === "set-password" 
+        ? `<p style="color: #374151; font-size: 16px;">Welcome to Gater.ng! Click the button below to set up your password and access your purchased tickets:</p>`
+        : `<p style="color: #374151; font-size: 16px;">We received a request to reset your password. Click the button below to create a new password:</p>`
+      }
       
       <div style="text-align: center; margin: 30px 0;">
-        <a href="${resetUrl}" style="display: inline-block; background-color: #f43f5e; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">Reset Password</a>
+        <a href="${setPasswordUrl}" style="display: inline-block; background-color: ${buttonBg}; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">${buttonText}</a>
       </div>
       
-      <p style="color: #6b7280; font-size: 14px;">This link will expire in 1 hour.</p>
+      <p style="color: #6b7280; font-size: 14px;">This link will expire in ${purpose === "set-password" ? "24 hours" : "1 hour"}.</p>
       
       <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
-        If you didn't request a password reset, please ignore this email.
+        If you didn't request this, please ignore this email.
       </p>
       
       <p style="color: #6b7280; font-size: 14px;">
@@ -142,15 +160,76 @@ export async function sendPasswordResetEmail(email: string, token: string) {
 
   try {
     const result = await resend.emails.send({
-      from: "Gater.ng <noreply@gater.ng>",
+      from: "Gater.ng <noreply@eleto.online>",
       to: email,
-      subject: "🔐 Reset Your Password - Gater.ng",
+      subject: subject,
       html: htmlContent,
     });
 
     return { success: true, data: result };
   } catch (error) {
     console.error("Error sending password reset email:", error);
+    return { success: false, error };
+  }
+}
+
+export async function sendVerificationEmail(email: string, token: string) {
+  const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/verify-email?token=${token}`;
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f9fafb; padding: 20px;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+    <div style="background-color: #22c55e; padding: 30px; text-align: center;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 28px;">✓ Verify Your Email</h1>
+    </div>
+    
+    <div style="padding: 30px;">
+      <p style="color: #374151; font-size: 16px;">Hello,</p>
+      <p style="color: #374151; font-size: 16px;">Welcome to Gater.ng! Click the button below to verify your email address:</p>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${verifyUrl}" style="display: inline-block; background-color: #22c55e; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">Verify Email</a>
+      </div>
+      
+      <p style="color: #6b7280; font-size: 14px;">This link will expire in 24 hours.</p>
+      
+      <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
+        If you didn't create an account on Gater.ng, please ignore this email.
+      </p>
+      
+      <p style="color: #6b7280; font-size: 14px;">
+        Best regards,<br>
+        The Gater.ng Team
+      </p>
+    </div>
+    
+    <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+      <p style="margin: 0; color: #9ca3af; font-size: 12px;">
+        © ${new Date().getFullYear()} Gater.ng - All rights reserved
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+`;
+
+  try {
+    const result = await resend.emails.send({
+      from: "Gater.ng <noreply@eleto.online>",
+      to: email,
+      subject: "✓ Verify Your Email - Gater.ng",
+      html: htmlContent,
+    });
+
+    return { success: true, data: result };
+  } catch (error) {
+    console.error("Error sending verification email:", error);
     return { success: false, error };
   }
 }

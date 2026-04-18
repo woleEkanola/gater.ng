@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
               month: "long",
               day: "numeric",
             }),
-            eventLocation: order.event.location,
+            eventLocation: order.event.location || "TBD",
             ticketId: ticket.ticketId,
             ticketType: ticketType?.name || "General",
             qrCode: ticket.qrCode,

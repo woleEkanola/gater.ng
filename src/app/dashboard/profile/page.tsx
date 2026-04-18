@@ -41,7 +41,7 @@ export default function ProfilePage() {
     fetch("/api/user/profile")
       .then((res) => {
         if (res.status === 401) {
-          router.push("/login");
+          router.push("/auth-route/login");
           return null;
         }
         return res.json();

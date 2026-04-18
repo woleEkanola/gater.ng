@@ -1,10 +1,18 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import prisma from "./prisma";
 
+const googleClientId = process.env.GOOGLE_CLIENT_ID;
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
 export const authOptions: NextAuthOptions = {
   providers: [
+    ...(googleClientId && googleClientSecret ? [GoogleProvider({
+      clientId: googleClientId,
+      clientSecret: googleClientSecret,
+    })] : []),
     CredentialsProvider({
       name: "credentials",
       credentials: {
@@ -28,6 +36,10 @@ export const authOptions: NextAuthOptions = {
 
         if (!isValid) {
           throw new Error("Invalid credentials");
+        }
+
+        if (user.mfaEnabled) {
+          throw new Error("MFA_REQUIRED");
         }
 
         return {
@@ -61,6 +73,7 @@ export const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60,
   },
   secret: process.env.NEXTAUTH_SECRET,
 };

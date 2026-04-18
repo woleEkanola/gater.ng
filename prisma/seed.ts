@@ -51,6 +51,44 @@ async function main() {
   });
   console.log("✓ Created attendee:", attendee.email);
 
+  const defaultAudiences = [
+    { name: "Everyone", isDefault: true, isCustom: false },
+    { name: "Beginners", isDefault: true, isCustom: false },
+    { name: "Professionals", isDefault: true, isCustom: false },
+    { name: "Students", isDefault: true, isCustom: false },
+    { name: "Entrepreneurs", isDefault: true, isCustom: false },
+    { name: "Women Only", isDefault: true, isCustom: false },
+  ];
+
+  for (const audience of defaultAudiences) {
+    await prisma.audienceType.upsert({
+      where: { name: audience.name },
+      update: {},
+      create: audience,
+    });
+  }
+  console.log("✓ Created default audience types");
+
+  const defaultTags = [
+    { name: "Workshop", color: "#10b981" },
+    { name: "Conference", color: "#3b82f6" },
+    { name: "Networking", color: "#8b5cf6" },
+    { name: "Music", color: "#f59e0b" },
+    { name: "Sports", color: "#ef4444" },
+    { name: "Food", color: "#ec4899" },
+    { name: "Art", color: "#06b6d4" },
+    { name: "Tech", color: "#6366f1" },
+  ];
+
+  for (const tag of defaultTags) {
+    await prisma.tag.upsert({
+      where: { name: tag.name },
+      update: {},
+      create: tag,
+    });
+  }
+  console.log("✓ Created default tags");
+
   const event = await prisma.event.upsert({
     where: { slug: "test-conference-2024" },
     update: {},

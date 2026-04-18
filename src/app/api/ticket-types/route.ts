@@ -55,6 +55,53 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function PUT(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { id, price } = body;
+
+    if (!id || price === undefined) {
+      return NextResponse.json({ error: "ID and price required" }, { status: 400 });
+    }
+
+    const ticketType = await prisma.ticketType.findUnique({
+      where: { id },
+      include: { event: true },
+    });
+
+    if (!ticketType) {
+      return NextResponse.json({ error: "Ticket type not found" }, { status: 404 });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email! },
+    });
+
+    if (!user || ticketType.event.organizerId !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    if (ticketType.soldCount > 0) {
+      return NextResponse.json({ error: "Cannot update price - tickets already sold" }, { status: 400 });
+    }
+
+    const updated = await prisma.ticketType.update({
+      where: { id },
+      data: { price },
+    });
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error("Error updating ticket type:", error);
+    return NextResponse.json({ error: "Failed to update ticket type" }, { status: 500 });
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);

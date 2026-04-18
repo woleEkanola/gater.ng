@@ -7,6 +7,25 @@ import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency, formatShortDate } from "@/lib/utils";
 import { HomeRecommendations } from "@/components/home-recommendations";
 import { Calendar, MapPin, Search, Heart, ArrowRight, Music, Briefcase, Palette, Utensils, Code, Activity, Shirt, Theater } from "lucide-react";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Gater.ng - Discover & Book Events in Nigeria",
+  description: "Discover the best events in Nigeria. Buy tickets for concerts, conferences, workshops and more on Gater.ng.",
+  openGraph: {
+    title: "Gater.ng - Discover & Book Events",
+    description: "Discover the best events in Nigeria. Buy tickets for concerts, conferences, workshops and more.",
+    url: "https://gater.ng",
+    siteName: "Gater.ng",
+    locale: "en_NG",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Gater.ng - Discover & Book Events",
+    description: "Discover the best events in Nigeria.",
+  },
+};
 
 const CATEGORIES = [
   { name: "Music", icon: Music },
@@ -91,11 +110,11 @@ export default async function HomePage() {
               </>
             ) : (
               <>
-                <Link href="/login" className="text-sm font-medium hover:text-rose-600">
+                <Link href="/auth-route/login" className="text-sm font-medium hover:text-rose-600">
                   Login
                 </Link>
                 <Link
-                  href="/register"
+                  href="/auth-route/register"
                   className="px-4 py-2 bg-rose-600 text-white rounded-md text-sm font-medium hover:bg-rose-700"
                 >
                   Get Started

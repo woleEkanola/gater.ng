@@ -1,10 +1,10 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Printer, Download, Calendar, MapPin, Ticket as TicketIcon } from "lucide-react";
+import { Printer, Download, Calendar, MapPin, Ticket as TicketIcon, Loader2, Video, ExternalLink, Info } from "lucide-react";
 
 interface Ticket {
   id: string;
@@ -15,19 +15,29 @@ interface Ticket {
 
 interface Order {
   id: string;
-  event: { title: string; location: string; dateTime: string };
+  event: { 
+    title: string; 
+    location: string; 
+    dateTime: string;
+    isOnline: boolean;
+    streamingLink: string | null;
+    accessInstructions: string | null;
+  };
   tickets: Ticket[];
 }
 
-export default function TicketDownloadPage() {
-  const searchParams = useSearchParams();
-  const orderId = searchParams.get("orderId");
+function TicketContent() {
+  const params = useParams();
+  const orderId = params.orderId as string;
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchOrder() {
-      if (!orderId) return;
+      if (!orderId) {
+        setLoading(false);
+        return;
+      }
       const res = await fetch(`/api/tickets?orderId=${orderId}`);
       const data = await res.json();
       setOrder(data);
@@ -36,28 +46,34 @@ export default function TicketDownloadPage() {
     fetchOrder();
   }, [orderId]);
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!order || order.tickets.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Ticket not found</p>
+      </div>
+    );
+  }
+
+  const ticket = order.tickets[0];
+  const isOnlineEvent = order.event.isOnline;
+
   const handlePrint = () => window.print();
 
   const handleDownload = async () => {
-    if (!order) return;
-    const ticket = order.tickets[0];
     if (!ticket) return;
-
     const link = document.createElement("a");
     link.href = ticket.qrCode;
     link.download = `ticket-${ticket.ticketId}.png`;
     link.click();
   };
-
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-  }
-
-  if (!order || order.tickets.length === 0) {
-    return <div className="min-h-screen flex items-center justify-center">No tickets found</div>;
-  }
-
-  const ticket = order.tickets[0];
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 print:p-0 print:bg-white">
@@ -85,14 +101,24 @@ export default function TicketDownloadPage() {
 
             <div className="border-t border-b py-4 mb-4">
               <h2 className="text-xl font-bold mb-2">{order.event.title}</h2>
+              {isOnlineEvent && (
+                <div className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium mb-3">
+                  <Video className="w-3 h-3" />
+                  Online Event
+                </div>
+              )}
               <div className="space-y-2 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4" />
-                  <span>{new Date(order.event.dateTime).toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</span>
+                  <span>
+                    {new Date(order.event.dateTime).toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+                    {" at "}
+                    {new Date(order.event.dateTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4" />
-                  <span>{order.event.location}</span>
+                  {isOnlineEvent ? <Video className="w-4 h-4" /> : <MapPin className="w-4 h-4" />}
+                  <span>{order.event.isOnline ? "Online Event" : order.event.location}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <TicketIcon className="w-4 h-4" />
@@ -101,6 +127,27 @@ export default function TicketDownloadPage() {
               </div>
             </div>
 
+            {isOnlineEvent && order.event.accessInstructions && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                <div className="flex items-center gap-2 text-blue-700 font-medium mb-1">
+                  <Info className="w-4 h-4" />
+                  Access Instructions
+                </div>
+                <p className="text-sm text-blue-600">{order.event.accessInstructions}</p>
+              </div>
+            )}
+
+            {isOnlineEvent && order.event.streamingLink && (
+              <div className="mb-4">
+                <Button className="w-full" asChild>
+                  <a href={order.event.streamingLink} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Join Event
+                  </a>
+                </Button>
+              </div>
+            )}
+
             <div className="text-center mb-4">
               <p className="text-sm text-muted-foreground mb-2">Ticket ID</p>
               <p className="text-xl font-mono font-bold">{ticket.ticketId}</p>
@@ -108,7 +155,7 @@ export default function TicketDownloadPage() {
 
             <div className="text-center">
               <img src={ticket.qrCode} alt="QR Code" className="w-48 h-48 mx-auto" />
-              <p className="text-xs text-muted-foreground mt-2">Scan at event entrance</p>
+              <p className="text-xs text-muted-foreground mt-2">{isOnlineEvent ? "Use this ticket to access the online event" : "Scan at event entrance"}</p>
             </div>
 
             <div className="mt-6 text-center text-xs text-muted-foreground">
@@ -130,5 +177,17 @@ export default function TicketDownloadPage() {
         }
       `}</style>
     </div>
+  );
+}
+
+export default function TicketDownloadPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    }>
+      <TicketContent />
+    </Suspense>
   );
 }

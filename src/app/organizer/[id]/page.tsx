@@ -130,7 +130,7 @@ export default function OrganizerProfilePage({ params }: { params: { id: string 
             <Link href="/events" className="text-sm font-medium hover:text-rose-600">
               Browse Events
             </Link>
-            <Link href="/login" className="text-sm font-medium hover:text-rose-600">
+            <Link href="/auth-route/login" className="text-sm font-medium hover:text-rose-600">
               Login
             </Link>
           </nav>

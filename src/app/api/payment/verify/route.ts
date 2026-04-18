@@ -74,6 +74,8 @@ export async function POST(request: NextRequest) {
         eventTitle: order.event.title,
         amount: order.amount,
         tickets: order.tickets.length,
+        buyerEmail: order.buyerEmail,
+        email: order.buyerEmail,
       });
     }
 
@@ -130,12 +132,12 @@ export async function POST(request: NextRequest) {
             month: "long",
             day: "numeric",
           }),
-          eventLocation: order.event.location,
+          eventLocation: order.event.location || "TBD",
           ticketId: ticket.ticketId,
           ticketType: ticketType?.name || "General",
           qrCode: ticket.qrCode,
           orderId: order.id,
-          amount: order.amount.toString(),
+          amount: (order.amount / 100).toString(),
         });
       }
       console.log(`Sent ${tickets.length} ticket emails for order ${orderId}`);
@@ -148,6 +150,8 @@ export async function POST(request: NextRequest) {
       eventTitle: order.event.title,
       amount: order.amount,
       tickets: tickets.length,
+      buyerEmail: order.buyerEmail,
+      email: order.buyerEmail,
     });
   } catch (error) {
     console.error("Verification error:", error);

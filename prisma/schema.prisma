@@ -35,6 +35,10 @@ model User {
   role          Role      @default(ATTENDEE)
   isActive     Boolean   @default(true)
   emailVerified DateTime?
+  verificationToken String?
+  verificationTokenExpiry DateTime?
+  mfaEnabled    Boolean   @default(false)
+  mfaSecret    String?
   resetToken       String?
   resetTokenExpiry DateTime?
   
@@ -57,6 +61,7 @@ model User {
   following     Follow[]  @relation("Following")
   followers     Follow[]  @relation("Follower")
   wishlist      Wishlist[]
+  eventFollows EventFollow[]
 }
 
 model Account {
@@ -95,35 +100,51 @@ model VerificationToken {
 }
 
 model Event {
-  id          String      @id @default(cuid())
+  id          String    @id @default(cuid())
+  slug        String    @unique
   title       String
-  slug        String      @unique
   description String?
   banner      String?
-  location    String
+  location    String?
   dateTime    DateTime
-  isPublished Boolean     @default(false)
-  isFeatured  Boolean     @default(false)
+  isPublished Boolean   @default(false)
+  isFeatured  Boolean   @default(false)
+  isOnline         Boolean   @default(false)
+  streamingLink    String?
+  accessInstructions String?  // Instructions for attendees on how to access the event
+  category         String?
+  targetAudience   String?
+  highlights       String?
+  hideAddress      Boolean   @default(false)
+  hideStreamingLink Boolean @default(false)
+  speakerLabel  String?   @default("Speakers")
+  contactEmail   String?
+  contactPhone  String?
+  websiteUrl    String?
+  twitterUrl    String?
+  facebookUrl   String?
+  instagramUrl  String?
+  youtubeUrl    String?
+  linkedinUrl   String?
   organizerId String
-  organizer   User        @relation(fields: [organizerId], references: [id])
-  ticketTypes TicketType[]
-  orders      Order[]
+  organizer   User      @relation(fields: [organizerId], references: [id], onDelete: Cascade)
+
+  ticketTypes     TicketType[]
+  orders          Order[]
   faqs        Faq[]
   discountCodes DiscountCode[]
   wishlist    Wishlist[]
+  tags        Tag[]
+  gallery    EventGallery[]
+  speakers   Speaker[]
+  followers  EventFollow[]
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
-
-  // New fields from learnings
-  isOnline        Boolean   @default(false)
-  streamingLink   String?
-  category        String?
-  targetAudience  String?
-  highlights      String?
 
   @@index([slug])
   @@index([category])
   @@index([isPublished])
+  @@index([organizerId])
 }
 
 model TicketType {
@@ -145,9 +166,11 @@ model Faq {
   id        String   @id @default(cuid())
   question  String
   answer    String
+  isVisible Boolean  @default(true)
   eventId   String
   event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 }
 
 model Ticket {
@@ -169,21 +192,23 @@ model Ticket {
 }
 
 model Order {
-  id         String      @id @default(cuid())
-  buyerId    String?
-  buyer      User?       @relation(fields: [buyerId], references: [id])
-  buyerEmail String?
-  buyerName  String?
-  buyerPhone String?
-  eventId    String
-  event      Event       @relation(fields: [eventId], references: [id])
-  status     OrderStatus @default(PENDING)
-  amount     Int
-  paymentRef String?
-  paidAt     DateTime?
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  tickets    Ticket[]
+  id          String      @id @default(cuid())
+  buyerId     String?
+  buyer       User?       @relation(fields: [buyerId], references: [id])
+  buyerEmail  String?
+  buyerName   String?
+  buyerPhone  String?
+  eventId     String
+  event       Event       @relation(fields: [eventId], references: [id])
+  status      OrderStatus @default(PENDING)
+  amount      Int
+  discountCode    String?
+  discountAmount Int      @default(0)
+  paymentRef  String?
+  paidAt      DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  tickets     Ticket[]
 }
 
 model CheckIn {
@@ -236,4 +261,60 @@ model Wishlist {
 
   @@unique([userId, eventId])
   @@index([userId])
+}
+
+model Tag {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  color       String?  @default("#6366f1")
+  events      Event[]
+  createdAt   DateTime @default(now())
+}
+
+model EventGallery {
+  id        String   @id @default(cuid())
+  image    String
+  caption String?
+  eventId  String
+  event    Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([eventId])
+}
+
+model Speaker {
+  id        String   @id @default(cuid())
+  name     String
+  bio      String?
+  image    String?
+  title    String?
+  company String?
+  isVisible Boolean  @default(true)
+  eventId  String
+  event    Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@index([eventId])
+}
+
+model EventFollow {
+  id        String   @id @default(cuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventId  String
+  event    Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, eventId])
+  @@index([userId])
+  @@index([eventId])
+}
+
+model AudienceType {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isDefault Boolean  @default(false)
+  isCustom  Boolean  @default(false)
+  createdAt DateTime @default(now())
 }

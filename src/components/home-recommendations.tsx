@@ -55,10 +55,10 @@ export function HomeRecommendations() {
           <h2 className="text-2xl font-bold mb-4">Personalized for you</h2>
           <p className="text-gray-500 mb-6">Sign in to get event recommendations based on your interests</p>
           <div className="flex gap-4 justify-center">
-            <Link href="/login" className="px-6 py-2 bg-rose-600 text-white rounded-md font-medium hover:bg-rose-700">
+            <Link href="/auth-route/login" className="px-6 py-2 bg-rose-600 text-white rounded-md font-medium hover:bg-rose-700">
               Sign In
             </Link>
-            <Link href="/register" className="px-6 py-2 border border-rose-600 text-rose-600 rounded-md font-medium hover:bg-rose-50">
+            <Link href="/auth-route/register" className="px-6 py-2 border border-rose-600 text-rose-600 rounded-md font-medium hover:bg-rose-50">
               Create Account
             </Link>
           </div>

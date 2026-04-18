@@ -7,27 +7,46 @@ import { generateQRCode, generateTicketId } from "@/lib/qr";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { eventId, items, email, name, phone } = body;
+    const { eventId, items, email, name, phone, discountCode, discountAmount } = body;
 
-    if (!eventId || !items || !items.length || !email) {
-      return NextResponse.json({ error: "Invalid request data" }, { status: 400 });
+    console.log("[API /orders] POST - received eventId:", eventId, "type:", typeof eventId, "items:", JSON.stringify(items), "email:", email);
+
+    if (!eventId || !items || !items.length) {
+      console.log("[API /orders] POST - invalid request, missing eventId or items");
+      return NextResponse.json({ error: "Event and tickets are required" }, { status: 400 });
     }
 
+    if (!email || !email.trim()) {
+      console.log("[API /orders] POST - email missing");
+      return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    }
+
+    if (!name || !name.trim()) {
+      console.log("[API /orders] POST - name missing");
+      return NextResponse.json({ error: "Name is required" }, { status: 400 });
+    }
+
+    console.log("[API /orders] POST - querying event by id:", eventId);
     const event = await prisma.event.findUnique({
       where: { id: eventId },
       include: { ticketTypes: true },
     });
 
     if (!event) {
+      console.log("[API /orders] POST - event not found for id:", eventId);
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
 
+    console.log("[API /orders] POST - event found:", event.id, event.slug, event.title, "isPublished:", event.isPublished);
+
     if (!event.isPublished) {
+      console.log("[API /orders] POST - event not published");
       return NextResponse.json({ error: "Event is not available for purchase" }, { status: 400 });
     }
 
     let totalAmount = 0;
     const orderItems: { ticketTypeId: string; quantity: number }[] = [];
+    const appliedDiscount = discountAmount || 0;
 
     for (const item of items) {
       const ticketType = event.ticketTypes.find((tt) => tt.id === item.ticketTypeId);
@@ -51,6 +70,8 @@ export async function POST(request: NextRequest) {
       orderItems.push({ ticketTypeId: item.ticketTypeId, quantity: item.quantity });
     }
 
+    const finalAmount = Math.max(0, totalAmount - appliedDiscount);
+
     let buyerId: string | undefined = undefined;
     const session = await getServerSession(authOptions);
     if (session?.user?.email) {
@@ -66,7 +87,9 @@ export async function POST(request: NextRequest) {
       buyerName: name || null,
       buyerPhone: phone || null,
       eventId,
-      amount: totalAmount,
+      amount: finalAmount,
+      discountCode: discountCode || null,
+      discountAmount: appliedDiscount,
       status: "PENDING",
     };
 
@@ -78,12 +101,40 @@ export async function POST(request: NextRequest) {
       data: orderData as Parameters<typeof prisma.order.create>[0]["data"],
     });
 
+    const isFree = finalAmount === 0;
+    
+    if (isFree) {
+      await prisma.order.update({
+        where: { id: order.id },
+        data: { status: "PAID" },
+      });
+      
+      for (const item of orderItems) {
+        for (let i = 0; i < item.quantity; i++) {
+          const ticketId = generateTicketId();
+          await prisma.ticket.create({
+            data: {
+              ticketId,
+              orderId: order.id,
+              ticketTypeId: item.ticketTypeId,
+            },
+          });
+          
+          await prisma.ticketType.update({
+            where: { id: item.ticketTypeId },
+            data: { soldCount: { increment: item.quantity } },
+          });
+        }
+      }
+    }
+
     return NextResponse.json({
       orderId: order.id,
       amount: totalAmount,
       email,
       name,
       eventTitle: event.title,
+      isFree,
     });
   } catch (error) {
     console.error("Error creating order:", error);

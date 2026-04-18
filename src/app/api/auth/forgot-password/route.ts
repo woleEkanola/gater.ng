@@ -29,7 +29,12 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    await sendPasswordResetEmail(email, resetToken);
+    const emailResult = await sendPasswordResetEmail(email, resetToken);
+    console.log("Password reset email result:", emailResult);
+
+    if (!emailResult.success) {
+      return NextResponse.json({ error: "Failed to send reset email" }, { status: 500 });
+    }
 
     return NextResponse.json({ message: "Password reset email sent" });
   } catch (error) {
