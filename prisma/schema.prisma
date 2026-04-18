@@ -35,6 +35,8 @@ model User {
   role          Role      @default(ATTENDEE)
   isActive     Boolean   @default(true)
   emailVerified DateTime?
+  resetToken       String?
+  resetTokenExpiry DateTime?
   
   payoutBankCode           String?
   payoutAccountNumber      String?
