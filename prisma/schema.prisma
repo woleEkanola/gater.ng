@@ -1,0 +1,237 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  SUPERADMIN
+  ORGANIZER
+  ATTENDEE
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  name          String?
+  image         String?
+  bio           String?
+  website       String?
+  twitter       String?
+  instagram     String?
+  facebook      String?
+  role          Role      @default(ATTENDEE)
+  isActive     Boolean   @default(true)
+  emailVerified DateTime?
+  
+  payoutBankCode           String?
+  payoutAccountNumber      String?
+  payoutAccountName       String?
+  paystackSubaccountCode  String?
+  paystackSettlementBank String?
+  transactionFeePercent   Float?   @default(5.0)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  accounts      Account[]
+  sessions      Session[]
+  events        Event[]
+  orders        Order[]
+  tickets       Ticket[]
+  checkIns      CheckIn[]
+  
+  following     Follow[]  @relation("Following")
+  followers     Follow[]  @relation("Follower")
+  wishlist      Wishlist[]
+}
+
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String? @db.Text
+  access_token       String? @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String? @db.Text
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Event {
+  id          String      @id @default(cuid())
+  title       String
+  slug        String      @unique
+  description String?
+  banner      String?
+  location    String
+  dateTime    DateTime
+  isPublished Boolean     @default(false)
+  isFeatured  Boolean     @default(false)
+  organizerId String
+  organizer   User        @relation(fields: [organizerId], references: [id])
+  ticketTypes TicketType[]
+  orders      Order[]
+  faqs        Faq[]
+  discountCodes DiscountCode[]
+  wishlist    Wishlist[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // New fields from learnings
+  isOnline        Boolean   @default(false)
+  streamingLink   String?
+  category        String?
+  targetAudience  String?
+  highlights      String?
+
+  @@index([slug])
+  @@index([category])
+  @@index([isPublished])
+}
+
+model TicketType {
+  id         String    @id @default(cuid())
+  name       String
+  price      Int
+  quantity   Int
+  soldCount  Int       @default(0)
+  salesStart DateTime?
+  salesEnd   DateTime?
+  eventId    String
+  event      Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  tickets    Ticket[]
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Faq {
+  id        String   @id @default(cuid())
+  question  String
+  answer    String
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model Ticket {
+  id           String     @id @default(cuid())
+  ticketId     String     @unique
+  ticketTypeId String
+  ticketType   TicketType @relation(fields: [ticketTypeId], references: [id])
+  ownerId      String?
+  owner        User?      @relation(fields: [ownerId], references: [id])
+  orderId      String?
+  order        Order?     @relation(fields: [orderId], references: [id])
+  isUsed       Boolean    @default(false)
+  usedAt       DateTime?
+  usedBy       String?
+  qrCode       String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  checkIn      CheckIn?
+}
+
+model Order {
+  id         String      @id @default(cuid())
+  buyerId    String?
+  buyer      User?       @relation(fields: [buyerId], references: [id])
+  buyerEmail String?
+  buyerName  String?
+  buyerPhone String?
+  eventId    String
+  event      Event       @relation(fields: [eventId], references: [id])
+  status     OrderStatus @default(PENDING)
+  amount     Int
+  paymentRef String?
+  paidAt     DateTime?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  tickets    Ticket[]
+}
+
+model CheckIn {
+  id        String   @id @default(cuid())
+  ticketId  String   @unique
+  ticket    Ticket   @relation(fields: [ticketId], references: [id])
+  checkedBy String
+  checker   User     @relation(fields: [checkedBy], references: [id])
+  checkedAt DateTime @default(now())
+}
+
+model DiscountCode {
+  id            String   @id @default(cuid())
+  code          String
+  discountType  String // "percentage" or "fixed"
+  discountValue Int      // in kobo/cents
+  maxUses       Int?
+  usesCount     Int      @default(0)
+  validUntil    DateTime?
+  eventId       String
+  event         Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([code, eventId])
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower    User     @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+model Wishlist {
+  id        String   @id @default(cuid())
+  userId    String
+  eventId   String
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
+  @@index([userId])
+}

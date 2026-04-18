@@ -1,0 +1,427 @@
+# GATER.NG - Implementation Plan (Next.js, Prisma, PostgreSQL)
+
+## 1. Project Setup
+
+### 1.1 Initialize Project
+```bash
+# Create Next.js app with TypeScript
+npx create-next-app@latest gater.ng --typescript
+cd gater.ng
+
+# Install required dependencies
+npm install prisma @prisma/client
+npm install -D @types/node
+npm install @next-auth/prisma-adapter next-auth
+npm install @hookform/resolvers zod react-hook-form
+npm install zustand
+npm install qrcode
+npm install @vercel/postgres  # or pg for direct PostgreSQL
+npm install @paystack/inline  # Paystack payment integration
+```
+
+### 1.2 Initialize Prisma
+```bash
+npx prisma init --datasource-provider postgresql
+```
+
+### 1.3 Environment Setup
+Create `.env` file:
+```
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE?schema=public"
+NEXTAUTH_SECRET="your-secret-key"
+NEXTAUTH_URL="http://localhost:3000"
+PAYSTACK_SECRET_KEY="your_paystack_secret_key"
+PAYSTACK_PUBLIC_KEY="your_paystack_public_key"
+```
+
+## 2. Database Schema Design (Prisma)
+
+### 2.1 Prisma Schema (`prisma/schema.sql` - actually `schema.prisma`)
+```prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User Roles
+enum Role {
+  ADMIN
+  ORGANIZER
+  ATTENDEE
+}
+
+// User Model
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String?
+  image         String?
+  role          Role     @default(ATTENDEE)
+  emailVerified DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  accounts      Account[]
+  sessions      Session[]
+  events        Event[]    @relation("OrganizerEvents")
+  orders        Order[]    @relation("BuyerOrders")
+  tickets       Ticket[]   @relation("TicketOwner")
+  checkIns      CheckIn[]  @relation("Checker")
+}
+
+// Authentication (Next-Auth)
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?   @db.Text
+  access_token       String?   @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?   @db.Text
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Event Model
+model Event {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  banner      String?  // URL to image stored in cloud/storage
+  location    String
+  dateTime    DateTime
+  isPublished Boolean  @default(false)
+  organizerId String
+  organizer   User     @relation("OrganizerEvents", fields: [organizerId], references: [id])
+  ticketTypes TicketType[] @relation("EventTicketTypes")
+  orders      Order[]    @relation("EventOrders")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Ticket Type Model
+model TicketType {
+  id          String   @id @default(cuid())
+  name        String   // Regular, VIP, Early Bird, etc.
+  price       Int      // in smallest currency unit (kobo for NGN)
+  quantity    Int
+  salesStart  DateTime?
+  salesEnd    DateTime?
+  eventId     String
+  event       Event    @relation("EventTicketTypes", fields: [eventId], references: [id])
+  tickets     Ticket[] @relation("TicketTypeTickets")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Ticket Model (individual ticket)
+model Ticket {
+  id          String   @id @default(cuid())
+  ticketId    String   @unique  // Human-readable ticket code (e.g., GAT-123ABC)
+  ticketTypeId String
+  ticketType  TicketType @relation("TicketTypeTickets", fields: [ticketTypeId], references: [id])
+  ownerId     String?    // Who bought it (null until purchased)
+  owner       User?      @relation("TicketOwner", fields: [ownerId], references: [id])
+  orderId     String?    // Which order it belongs to
+  order       Order?     @relation("OrderTickets", fields: [orderId], references: [id])
+  isUsed      Boolean    @default(false)
+  usedAt      DateTime?
+  usedBy      String?    // Who checked it in (organizer/admin)
+  checker     User?      @relation("Checker", fields: [usedBy], references: [id])
+  qrCode      String?    // Generated QR data or URL
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Order Model
+model Order {
+  id           String   @id @default(cuid())
+  buyerId      String
+  buyer        User     @relation("BuyerOrders", fields: [buyerId], references: [id])
+  eventId      String
+  event        Event    @relation("EventOrders", fields: [eventId], references: [id])
+  status       OrderStatus @default(PENDING)
+  amount       Int      // Total in kobo
+  paymentRef   String?  // Paystack reference
+  paidAt       DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  tickets      Ticket[] @relation("OrderTickets")
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+// Check-in Record (optional, for audit)
+model CheckIn {
+  id        String   @id @default(cuid())
+  ticketId  String
+  ticket    Ticket   @relation("CheckIns", fields: [ticketId], references: [id])
+  checkedBy String   // Organizer/Admin who did the check-in
+  checker   User     @relation("Checker", fields: [checkedBy], references: [id])
+  checkedAt DateTime @default(now())
+  @@unique([ticketId])
+}
+```
+
+### 2.2 Apply Migration
+```bash
+npx prisma migrate dev --name init
+npx prisma generate
+```
+
+## 3. Next.js Project Structure
+
+```
+gater.ng/
+├── app/                    # Next.js 13+ app router
+│   ├── (auth)/             # Auth routes (login, register, etc.)
+│   ├── (organizer)/        # Organizer-protected routes
+│   ├── (admin)/            # Admin-protected routes
+│   ├── api/                # API routes
+│   │   ├── auth/[...nextauth]/route.ts
+│   │   ├── events/route.ts
+│   │   ├── tickets/route.ts
+│   │   ├── orders/route.ts
+│   │   ├── paystack/webhook/route.ts
+│   │   └── checkin/route.ts
+│   ├── dashboard/          # Organizer dashboard
+│   ├── events/[id]/        # Individual event page
+│   ├── checkout/           # Checkout flow
+│   └── layout.tsx
+├── components/             # Reusable components
+│   ├── ui/                 # Shadcn/ui or custom UI
+│   ├── layout/             # Header, Footer, etc.
+│   ├── forms/              # Form components
+│   └── tickets/            # Ticket-specific components
+├── lib/                    # Utility functions
+│   ├── prisma.ts           # Prisma client singleton
+│   ├── auth.ts             # NextAuth configuration
+│   ├── paystack.ts         # Paystack helper functions
+│   └── qr.ts               # QR code generation
+├── hooks/                  # Custom React hooks
+├── prisma/                 # Prisma schema and migrations
+├── public/                 # Static assets
+├── styles/                 # CSS/Tailwind config
+└── types/                  # TypeScript types
+```
+
+## 4. Feature Implementation Plan
+
+### Phase 1: Core MVP (Weeks 1-3)
+
+#### 4.1 Authentication & User Management
+- [ ] Set up NextAuth with Credentials provider (email/password)
+- [ ] Implement registration, login, logout, password reset
+- [ ] Role-based access control (Attendee, Organizer, Admin)
+- [ ] Optional: Google login, OTP verification (Phase 2)
+
+#### 4.2 Event Management
+- [ ] Organizer can create, edit, publish/unpublish, delete events
+- [ ] Event form with title, description, banner upload, location, date/time
+- [ ] Image upload to local storage (or cloud storage like AWS S3 in Phase 2)
+- [ ] Event listing page for attendees (public)
+
+#### 4.3 Ticket Management
+- [ ] Organizer can create multiple ticket types per event (Regular, VIP, etc.)
+- [ ] Set price, quantity, sales start/end dates for each ticket type
+- [ ] Inventory tracking (prevent overselling)
+
+#### 4.4 Payment System (Paystack Integration)
+- [ ] Initialize Paystack transaction on checkout
+- [ ] Handle Paystack webhook for payment verification
+- [ ] Support card, bank transfer, USSD payments
+- [ ] Failed payment recovery/retry mechanism
+
+#### 4.5 Order Management
+- [ ] Create order on successful payment
+- [ ] Track order status (Pending, Paid, Failed)
+- [ ] Store buyer info, ticket types, quantities, payment reference
+
+#### 4.6 Digital Ticketing System
+- [ ] Generate unique ticket ID (e.g., GAT-XXXXXX)
+- [ ] Generate QR code for each ticket (using `qrcode` library)
+- [ ] Store QR code as data URL or generate on-demand
+- [ ] Ticket includes event details, ticket type, QR code, attendee name
+
+#### 4.7 Ticket Delivery
+- [ ] Email ticket delivery (using Nodemailer or SendGrid in Phase 2)
+- [ ] Downloadable ticket PDF/PNG
+- [ ] Optional: WhatsApp/SMS delivery (Phase 2)
+
+#### 4.8 Event Check-in System
+- [ ] Mobile-friendly QR code scanning interface (using browser camera or external scanner)
+- [ ] Real-time validation: valid, already used, invalid
+- [ ] Mark ticket as used on successful check-in
+- [ ] Manual check-in fallback (organizer can search by ticket ID)
+
+#### 4.9 Organizer Dashboard
+- [ ] Overview of events with sales metrics
+- [ ] Ticket sales tracking per event
+- [ ] Revenue analytics (total revenue, pending payments)
+- [ ] Attendee list with filtering/search
+- [ ] Export attendee list as CSV
+
+#### 4.10 Public Event Discovery
+- [ ] Browse upcoming events (published events only)
+- [ ] Search events by title/location
+- [ ] Filter by date (upcoming, past)
+- [ ] Event page showing details, ticket options, purchase button
+
+### Phase 2: Enhancements (Weeks 4-6)
+
+#### 4.11 Admin Panel
+- [ ] View all users, events, transactions
+- [ ] Monitor disputes, issue refunds
+- [ ] System settings management
+
+#### 4.12 Security & Fraud Prevention
+- [ ] Ensure unique QR per ticket, one-time validation
+- [ ] Payment verification via webhook (already in Phase 1)
+- [ ] Rate limiting on API endpoints
+- [ ] Input sanitization and validation
+
+#### 4.13 System Notifications
+- [ ] Ticket purchase success email/SMS
+- [ ] Event reminder emails (optional)
+- [ ] Payment failure notifications
+
+#### 4.14 File & Media Management
+- [ ] Efficient image storage and serving (optimize uploads, use CDN)
+- [ ] Consider integrating with Cloudinary/AWS S3
+
+#### 4.15 Analytics (Basic)
+- [ ] Sales trends (daily/weekly/monthly)
+- [ ] Ticket performance by type
+- [ ] Attendance rate calculation (checked-in vs. total sold)
+
+## 5. Development Workflow & Milestones
+
+### Milestone 1: Project Setup & Auth (End of Week 1)
+- [ ] Project initialized with Next.js, TypeScript, Tailwind CSS
+- [ ] Prisma schema defined and migrated
+- [ ] NextAuth configured with email/password and roles
+- [ ] Basic login/register pages working
+
+### Milestone 2: Core Event & Ticket Functionality (End of Week 2)
+- [ ] Event CRUD for organizers
+- [ ] Ticket type management per event
+- [ ] Public event listing and detail pages
+- [ ] Basic UI components built
+
+### Milestone 3: Payment & Order Processing (End of Week 3)
+- [ ] Paystack integration (initialize transaction, webhook handling)
+- [ ] Order creation and status tracking
+- [ ] Ticket generation upon successful payment
+- [ ] Email delivery of tickets
+
+### Milestone 4: Check-in & Dashboard (End of Week 4)
+- [ ] QR code scanning interface
+- [ ] Ticket validation and check-in logic
+- [ ] Organizer dashboard with sales overview
+- [ ] Attendee list and CSV export
+
+### Milestone 5: Public Discovery & Polish (End of Week 5)
+- [ ] Public event browsing and search
+- [ ] Event filtering by date/location
+- [ ] UI/UX improvements, responsiveness
+- [ ] Bug fixing and testing
+
+### Milestone 6: Deployment & Final Review (End of Week 6)
+- [ ] Deploy to Vercel (or similar)
+- [ ] Set up production PostgreSQL (Vercel Postgres, Supabase, or Railway)
+- [ ] Configure environment variables
+- [ ] Final QA and user acceptance testing
+- [ ] Documentation handover
+
+## 6. Technical Considerations
+
+### 6.1 Database
+- Use PostgreSQL for relational data and scalability
+- Index frequently queried fields (eventId, ticketId, ownerId, status)
+- Consider partitioning for high-volume ticket tables if needed
+
+### 6.2 Authentication
+- NextAuth with JWT or database sessions
+- Secure password hashing (bcrypt)
+- Role-based middleware for route protection
+
+### 6.3 Paystack Integration
+- Use Paystack's inline JavaScript or SDK for frontend
+- Verify webhook signatures for security
+- Handle idempotency in webhook processing
+
+### 6.4 QR Code Generation
+- Generate QR codes as SVGs or PNGs on-demand
+- Consider caching generated QRs to reduce computation
+- Use libraries like `qrcode` or `qr-code-styling` for custom designs
+
+### 6.5 Image Handling
+- Store images in public/uploads or use external storage (Cloudinary/S3)
+- Optimize images on upload (resize, compress)
+- Implement lazy loading for event banners
+
+### 6.6 State Management
+- Use React Query/SWR for server state
+- Use Zustand or Context API for client state (cart, user info)
+- Avoid prop drilling with proper context usage
+
+### 6.7 Error Handling & Logging
+- Implement error boundaries in React
+- Log errors to external service (Sentry, LogRocket) in production
+- Validate all API inputs with Zod
+
+### 6.8 Performance
+- Implement pagination for large lists (events, attendees, orders)
+- Use incremental static regeneration (ISR) for public event pages
+- Optimize database queries with Prisma's select/include
+
+### 6.9 Security
+- Use helmet.js or equivalent for security headers
+- Sanitize user inputs to prevent XSS
+- Implement CSRF protection for forms
+- Use environment variables for secrets
+- Regular dependency updates
+
+## 7. Optional Integrations (Future Phases)
+- [ ] WhatsApp Business API for ticket delivery and reminders
+- [ ] SMS gateway (Twilio, Africa's Talking) for notifications
+- [ ] Google Calendar integration for event reminders
+- [ ] Social sharing (WhatsApp, Twitter, Facebook) for event promotion
+- [ ] Referral and discount code system
+- [ ] Analytics dashboard with charts (using Recharts or Victory)
+- [ ] Multi-currency support (NGN, USD, etc.)
+- [ ] Mobile app (React Native) for organizers/check-in
+
+---
+*This plan provides a structured approach to building Gater.ng with Next.js, Prisma, and PostgreSQL. Adjust timelines based on team size and complexity. Regular reviews and iterations recommended.*
