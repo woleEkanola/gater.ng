@@ -137,8 +137,8 @@ export default function AdminDashboard() {
 
   const handleFeatureEvent = async (eventId: string, featured: boolean) => {
     try {
-      await fetch(`/api/admin/events/${eventId}/feature`, {
-        method: "POST",
+      await fetch(`/api/admin/events/${eventId}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ featured }),
       });
