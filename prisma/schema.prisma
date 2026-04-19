@@ -318,3 +318,23 @@ model AudienceType {
   isCustom  Boolean  @default(false)
   createdAt DateTime @default(now())
 }
+
+model B2BLandingPage {
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  h1Title         String
+  subHeadline     String
+  targetAudience  String
+  intent          String
+  featuresJson   String   @db.Text
+  metaTitle       String
+  metaDescription String  @db.Text
+  ctaText         String   @default("Create Your Event")
+  ctaLink        String   @default("/dashboard/events/new")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([slug])
+  @@index([targetAudience])
+  @@index([intent])
+}
