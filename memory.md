@@ -1,4 +1,4 @@
-# Session Memory - gater.ng
+# Session Memory - Hitix
 
 **Last Updated:** April 18, 2026
 
@@ -46,6 +46,16 @@
 - **Files:** [changed files]
 - **Status:** ✅ DONE
 ```
+
+### Brand Name Change (Apr 19)
+- **Prompt:** change the brandname to hitix
+- **Plan:** Updated all references from gater.ng to Hitix in source files
+- **Files:**
+  - `package.json` - name changed to "hitix"
+  - `src/app/page.tsx` - All Gater.ng → Hitix
+  - `prisma/seed.ts` - Emails updated
+  - `prisma/seed-superadmin.ts` - Email updated
+- **Status:** ✅ DONE
 
 ### Promo Code in Checkout (Apr 18 19:00)
 - **Prompt:** add way to add promocode while buying ticket
@@ -172,7 +182,7 @@
 ---
 
 ## 📦 Project Context
-- **Project:** gater.ng (Next.js event ticketing platform)
+- **Project:** Hitix (Next.js event ticketing platform)
 - **Stack:** Next.js 16.2.4, Prisma, PostgreSQL, Tailwind
 - **Platform:** Windows
 - **IMPORTANT:** Always use Next.js 16.x - never downgrade to 14
@@ -329,7 +339,7 @@
 - **Routes:** `/forgot-password`, `/reset-password`
 - **APIs:** `/api/auth/forgot-password`, `/api/auth/reset-password`
 - **Features:** Email reset link, password reset form, 1-hour token expiry
-- **Fix:** Changed sender domain from gater.ng to eleto.online (verified on Resend)
+- **Fix:** Changed sender domain from hitix to eleto.online (verified on Resend)
 - **Status:** ✅ DONE
 
 ### Next.js 16 Upgrade (Apr 18)
@@ -417,20 +427,32 @@
 | **SUPERADMIN** | `/admin_dash` | Full platform control |
 
 **Seed:**
-- Email: `admin@gater.ng`
+- Email: `admin@hitix`
 - Password: `Admin@123`
 
 ---
 
-## 📋 Embeddable Widget Plan (NOT STARTED)
+## 📋 Embeddable Widget Plan (Option B - Redirect Checkout)
 
 ### Overview
 Allow organizers to embed Gater ticket widget on their own websites to sell tickets directly from their domain.
 
-### Architecture: Option B (Redirect Checkout)
+### Architecture: Option B (Redirect Checkout) - NOT FULLY EMBEDDED
 - Widget displays event + ticket selection on organizer's site
-- Checkout redirects to Gater for payment
+- Checkout redirects to Gater for payment (NOT embedded - simpler, proven model like Eventbrite)
 - After payment, optional redirect back to organizer's site
+
+### Widget Flow
+1. Organizer adds embed script to their website
+2. Widget shows event details + ticket selection on their site
+3. User clicks "Checkout" → redirect to Gater payment page
+4. After payment → success page → optional redirect back to organizer's site
+
+### Why Option B?
+- Easier to implement and maintain
+- No PCI compliance complexity on organizer's site
+- Uses existing Gater checkout flow
+- Proven model (Eventbrite, ticketmaster use similar approach)
 
 ### Core Components
 
@@ -455,7 +477,7 @@ Allow organizers to embed Gater ticket widget on their own websites to sell tick
 
 ### Embed Example
 ```html
-<script src="https://gater.ng/widget.js" async></script>
+<script src="https://hitix.com/widget.js" async></script>
 <div data-gater-widget="EVENT_ID" data-theme="custom" data-color="#ff0000"></div>
 ```
 
@@ -464,9 +486,9 @@ Allow organizers to embed Gater ticket widget on their own websites to sell tick
 2. Click "Embed Widget" 
 3. Copy the provided code
 4. Paste into their website
-5. Sales appear in their Gater dashboard
+5. Sales appear in their Gater dashboard (existing dashboard)
 
-### Implementation Steps (TBD)
+### Implementation Steps
 1. **Widget Component** - Create React component that displays event + tickets
 2. **Widget API** - Public endpoint to fetch event for embed
 3. **Embed Settings** - Add widget customization options to event dashboard
@@ -474,12 +496,12 @@ Allow organizers to embed Gater ticket widget on their own websites to sell tick
 5. **Redirect Flow** - After payment, optionally redirect back to organizer's site
 
 ### Security Considerations
-- Domain whitelisting
+- Domain whitelisting for organizers
 - CSP headers for iframe
 - Use existing Paystack integration (PCI compliant)
 - Script integrity (SRI)
 
-### Status: ⏳ PENDING
+### Status: ⏳ PENDING (Not started)
 
 ---
 

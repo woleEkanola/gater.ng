@@ -11,10 +11,10 @@ async function main() {
   const attendeePassword = await bcrypt.hash("attendee123", 10);
 
   const admin = await prisma.user.upsert({
-    where: { email: "admin@gater.ng" },
+    where: { email: "admin@hitix" },
     update: {},
     create: {
-      email: "admin@gater.ng",
+      email: "admin@hitix",
       password: adminPassword,
       name: "Super Admin",
       role: Role.ADMIN,
@@ -24,10 +24,10 @@ async function main() {
   console.log("✓ Created admin:", admin.email);
 
   const organizer = await prisma.user.upsert({
-    where: { email: "organizer@gater.ng" },
+    where: { email: "organizer@hitix" },
     update: {},
     create: {
-      email: "organizer@gater.ng",
+      email: "organizer@hitix",
       password: organizerPassword,
       name: "Test Organizer",
       role: Role.ORGANIZER,
@@ -40,10 +40,10 @@ async function main() {
   console.log("✓ Created organizer:", organizer.email);
 
   const attendee = await prisma.user.upsert({
-    where: { email: "attendee@gater.ng" },
+    where: { email: "attendee@hitix" },
     update: {},
     create: {
-      email: "attendee@gater.ng",
+      email: "attendee@hitix",
       password: attendeePassword,
       name: "Test Attendee",
       role: Role.ATTENDEE,
@@ -158,9 +158,9 @@ async function main() {
 
   console.log("\n✅ Seed complete!");
   console.log("\n📋 Test Accounts:");
-  console.log("  Admin: admin@gater.ng / admin123");
-  console.log("  Organizer: organizer@gater.ng / organizer123");
-  console.log("  Attendee: attendee@gater.ng / attendee123");
+  console.log("  Admin: admin@hitix / admin123");
+  console.log("  Organizer: organizer@hitix / organizer123");
+  console.log("  Attendee: attendee@hitix / attendee123");
 }
 
 main()

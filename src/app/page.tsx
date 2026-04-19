@@ -10,19 +10,19 @@ import { Calendar, MapPin, Search, Heart, ArrowRight, Music, Briefcase, Palette,
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Gater.ng - Discover & Book Events in Nigeria",
-  description: "Discover the best events in Nigeria. Buy tickets for concerts, conferences, workshops and more on Gater.ng.",
+  title: "Hitix - Discover & Book Events in Nigeria",
+  description: "Discover the best events in Nigeria. Buy tickets for concerts, conferences, workshops and more on Hitix.",
   openGraph: {
-    title: "Gater.ng - Discover & Book Events",
+    title: "Hitix - Discover & Book Events",
     description: "Discover the best events in Nigeria. Buy tickets for concerts, conferences, workshops and more.",
     url: "https://gater.ng",
-    siteName: "Gater.ng",
+    siteName: "Hitix",
     locale: "en_NG",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Gater.ng - Discover & Book Events",
+    title: "Hitix - Discover & Book Events",
     description: "Discover the best events in Nigeria.",
   },
 };
@@ -90,7 +90,7 @@ export default async function HomePage() {
       <header className="border-b sticky top-0 bg-white/95 backdrop-blur z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="text-2xl font-bold text-rose-600">
-            Gater.ng
+            Hitix
           </Link>
           <nav className="flex items-center gap-6">
             <Link href="/events" className="text-sm font-medium hover:text-rose-600">
@@ -299,7 +299,7 @@ export default async function HomePage() {
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold mb-4">Ready to create your event?</h2>
           <p className="text-rose-100 mb-8 max-w-xl mx-auto">
-            Join thousands of organizers who trust Gater.ng to sell tickets to their events.
+            Join thousands of organizers who trust Hitix to sell tickets to their events.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
@@ -321,11 +321,11 @@ export default async function HomePage() {
       <footer className="border-t py-8">
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="text-2xl font-bold text-rose-600">Gater.ng</div>
+            <div className="text-2xl font-bold text-rose-600">Hitix</div>
             <nav className="flex items-center gap-6 text-sm text-gray-500">
               <Link href="/events" className="hover:text-rose-600">Discover Events</Link>
               <Link href={session ? "/dashboard/events/new" : "/register"} className="hover:text-rose-600">Create Event</Link>
-              <span>&copy; {new Date().getFullYear()} Gater.ng</span>
+              <span>&copy; {new Date().getFullYear()} Hitix</span>
             </nav>
           </div>
         </div>

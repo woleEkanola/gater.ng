@@ -4,7 +4,7 @@ import bcryptjs from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
-  const ADMIN_EMAIL = "admin@gater.ng";
+  const ADMIN_EMAIL = "admin@hitix";
   const ADMIN_PASSWORD = "Admin@123"; // Change this!
   
   // Check if superadmin exists
