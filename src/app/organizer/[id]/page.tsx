@@ -124,7 +124,7 @@ export default function OrganizerProfilePage({ params }: { params: { id: string 
       <header className="border-b bg-white">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="text-2xl font-bold text-rose-600">
-            Gater.ng
+            Hitix
           </Link>
           <nav className="flex items-center gap-4">
             <Link href="/events" className="text-sm font-medium hover:text-rose-600">

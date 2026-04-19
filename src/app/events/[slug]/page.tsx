@@ -129,7 +129,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
       <header className="border-b">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="text-2xl font-bold text-primary">
-            Gater.ng
+            Hitix
           </Link>
           <nav className="flex items-center gap-4">
             <Link href="/events" className="text-sm font-medium hover:text-primary">

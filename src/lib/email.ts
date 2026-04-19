@@ -60,13 +60,13 @@ export async function sendTicketEmail(data: TicketEmailData) {
       
       <p style="color: #6b7280; font-size: 14px;">
         Best regards,<br>
-        The Gater.ng Team
+        The Hitix Team
       </p>
     </div>
     
     <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
       <p style="margin: 0; color: #9ca3af; font-size: 12px;">
-        © ${new Date().getFullYear()} Gater.ng - All rights reserved
+        © ${new Date().getFullYear()} Hitix - All rights reserved
       </p>
     </div>
   </div>
@@ -76,7 +76,7 @@ export async function sendTicketEmail(data: TicketEmailData) {
 
   try {
     const result = await resend.emails.send({
-      from: "Gater.ng <tickets@eleto.online>",
+      from: "Hitix <tickets@hitix.online>",
       to: email,
       subject: `🎫 Your Ticket for ${eventTitle}`,
       html: htmlContent,
@@ -101,12 +101,12 @@ export async function sendPasswordResetEmail(email: string, token: string, purpo
   let subject, title, buttonBg, buttonText;
   
   if (purpose === "set-password") {
-    subject = "🔗 Complete Your Account Setup - Gater.ng";
+    subject = "🔗 Complete Your Account Setup - Hitix";
     title = "🎉 Complete Your Account Setup";
     buttonBg = "#4f46e5";
     buttonText = "Set Password";
   } else {
-    subject = "🔐 Reset Your Password - Gater.ng";
+    subject = "🔐 Reset Your Password - Hitix";
     title = "🔐 Reset Your Password";
     buttonBg = "#f43f5e";
     buttonText = "Reset Password";
@@ -128,7 +128,7 @@ export async function sendPasswordResetEmail(email: string, token: string, purpo
     <div style="padding: 30px;">
       <p style="color: #374151; font-size: 16px;">Hello,</p>
       ${purpose === "set-password" 
-        ? `<p style="color: #374151; font-size: 16px;">Welcome to Gater.ng! Click the button below to set up your password and access your purchased tickets:</p>`
+        ? `<p style="color: #374151; font-size: 16px;">Welcome to Hitix! Click the button below to set up your password and access your purchased tickets:</p>`
         : `<p style="color: #374151; font-size: 16px;">We received a request to reset your password. Click the button below to create a new password:</p>`
       }
       
@@ -144,13 +144,13 @@ export async function sendPasswordResetEmail(email: string, token: string, purpo
       
       <p style="color: #6b7280; font-size: 14px;">
         Best regards,<br>
-        The Gater.ng Team
+        The Hitix Team
       </p>
     </div>
     
     <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
       <p style="margin: 0; color: #9ca3af; font-size: 12px;">
-        © ${new Date().getFullYear()} Gater.ng - All rights reserved
+        © ${new Date().getFullYear()} Hitix - All rights reserved
       </p>
     </div>
   </div>
@@ -160,7 +160,7 @@ export async function sendPasswordResetEmail(email: string, token: string, purpo
 
   try {
     const result = await resend.emails.send({
-      from: "Gater.ng <noreply@eleto.online>",
+      from: "Hitix <noreply@hitix.online>",
       to: email,
       subject: subject,
       html: htmlContent,
@@ -191,7 +191,7 @@ export async function sendVerificationEmail(email: string, token: string) {
     
     <div style="padding: 30px;">
       <p style="color: #374151; font-size: 16px;">Hello,</p>
-      <p style="color: #374151; font-size: 16px;">Welcome to Gater.ng! Click the button below to verify your email address:</p>
+      <p style="color: #374151; font-size: 16px;">Welcome to Hitix! Click the button below to verify your email address:</p>
       
       <div style="text-align: center; margin: 30px 0;">
         <a href="${verifyUrl}" style="display: inline-block; background-color: #22c55e; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">Verify Email</a>
@@ -200,18 +200,18 @@ export async function sendVerificationEmail(email: string, token: string) {
       <p style="color: #6b7280; font-size: 14px;">This link will expire in 24 hours.</p>
       
       <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
-        If you didn't create an account on Gater.ng, please ignore this email.
+        If you didn't create an account on Hitix, please ignore this email.
       </p>
       
       <p style="color: #6b7280; font-size: 14px;">
         Best regards,<br>
-        The Gater.ng Team
+        The Hitix Team
       </p>
     </div>
     
     <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
       <p style="margin: 0; color: #9ca3af; font-size: 12px;">
-        © ${new Date().getFullYear()} Gater.ng - All rights reserved
+        © ${new Date().getFullYear()} Hitix - All rights reserved
       </p>
     </div>
   </div>
@@ -221,9 +221,9 @@ export async function sendVerificationEmail(email: string, token: string) {
 
   try {
     const result = await resend.emails.send({
-      from: "Gater.ng <noreply@eleto.online>",
+      from: "Hitix <noreply@hitix.online>",
       to: email,
-      subject: "✓ Verify Your Email - Gater.ng",
+      subject: "✓ Verify Your Email - Hitix",
       html: htmlContent,
     });
 

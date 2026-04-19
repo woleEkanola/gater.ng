@@ -6,7 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Gater.ng - Event Ticketing Platform",
+  title: "Hitix - Event Ticketing Platform",
   description: "Create, manage, and attend events with ease. Fast, secure, and reliable event ticketing.",
 };
 

@@ -8,7 +8,7 @@ export default function OrganizerPage() {
       <header className="border-b">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="text-2xl font-bold text-rose-600">
-            Gater.ng
+            Hitix
           </Link>
           <nav className="flex items-center gap-4">
             <Link href="/events" className="text-sm font-medium hover:text-rose-600">
@@ -168,7 +168,7 @@ export default function OrganizerPage() {
             Ready to grow your audience?
           </h2>
           <p className="text-xl text-gray-500 mb-8">
-            Join thousands of organizers already using Gater.ng
+            Join thousands of organizers already using Hitix
           </p>
           <Link
             href="/auth-route/register"
@@ -182,11 +182,11 @@ export default function OrganizerPage() {
       <footer className="border-t py-8 bg-gray-50">
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="text-2xl font-bold text-rose-600">Gater.ng</div>
+            <div className="text-2xl font-bold text-rose-600">Hitix</div>
             <nav className="flex items-center gap-6 text-sm text-gray-500">
               <Link href="/events" className="hover:text-rose-600">Discover Events</Link>
               <Link href="/organizer/demo" className="hover:text-rose-600">Demo</Link>
-              <span>&copy; {new Date().getFullYear()} Gater.ng</span>
+              <span>&copy; {new Date().getFullYear()} Hitix</span>
             </nav>
           </div>
         </div>

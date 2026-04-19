@@ -177,7 +177,7 @@ export default function CreateEventPage() {
       <header className="border-b bg-white">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/dashboard" className="text-2xl font-bold text-blue-600">
-            Gater.ng
+            Hitix
           </Link>
           <Button asChild variant="ghost">
             <Link href="/dashboard">Back to Dashboard</Link>

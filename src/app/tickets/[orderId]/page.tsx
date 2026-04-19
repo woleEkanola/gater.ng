@@ -95,7 +95,7 @@ function TicketContent() {
         <Card className="print:border-2 print:shadow-none">
           <CardContent className="p-6">
             <div className="text-center mb-6">
-              <h1 className="text-2xl font-bold text-primary">Gater.ng</h1>
+              <h1 className="text-2xl font-bold text-primary">Hitix</h1>
               <p className="text-sm text-muted-foreground">Event Ticket</p>
             </div>
 
@@ -160,7 +160,7 @@ function TicketContent() {
 
             <div className="mt-6 text-center text-xs text-muted-foreground">
               <p>Order ID: {order.id}</p>
-              <p className="mt-1">© {new Date().getFullYear()} Gater.ng</p>
+              <p className="mt-1">© {new Date().getFullYear()} Hitix</p>
             </div>
           </CardContent>
         </Card>

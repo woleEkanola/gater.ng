@@ -641,7 +641,7 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/dashboard" className="text-2xl font-bold text-primary">
-            Gater.ng
+            Hitix
           </Link>
           <Button asChild variant="ghost">
             <Link href="/dashboard">Back to Dashboard</Link>

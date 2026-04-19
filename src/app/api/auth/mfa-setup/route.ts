@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
   }
   
   const secret = speakeasy.generateSecret({
-    name: `Gater.ng (${user.email})`,
+    name: `Hitix (${user.email})`,
     length: 20,
   });
   

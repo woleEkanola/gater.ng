@@ -181,7 +181,7 @@ export default function AdminDashboard() {
       <header className="bg-white border-b">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="text-2xl font-bold text-rose-600">
-            Gater.ng Admin
+            Hitix Admin
           </Link>
           <nav className="flex items-center gap-4">
             <Link href="/dashboard" className="text-sm font-medium hover:text-rose-600">
