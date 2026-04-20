@@ -37,6 +37,7 @@ export async function POST(request: NextRequest) {
         password: hashedPassword,
         name: name || null,
         role: "ORGANIZER",
+        defaultDashboard: "organizer",
         verificationToken,
         verificationTokenExpiry,
       },

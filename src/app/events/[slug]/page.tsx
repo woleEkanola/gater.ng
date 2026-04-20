@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WishlistButton } from "@/components/wishlist-button";
 import { FollowButton } from "@/components/follow-button";
+import { ResponsiveHeader } from "@/components/responsive-header";
 import { AlertCircle, Calendar, MapPin, User, Globe, Users, Tag, HelpCircle, Image as ImageIcon } from "lucide-react";
 import { FaqAccordion } from "@/components/faq-accordion";
 import { SpeakerGrid } from "@/components/speaker-modal";
@@ -124,27 +127,15 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
     (tt) => tt.price > 0 && !organizerHasPayout
   );
 
+  const session = await getServerSession(authOptions);
+
   return (
     <div className="min-h-screen">
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="text-2xl font-bold text-primary">
-            Hitix
-          </Link>
-          <nav className="flex items-center gap-4">
-            <Link href="/events" className="text-sm font-medium hover:text-primary">
-              Browse Events
-            </Link>
-            <Link href="/auth-route/login" className="text-sm font-medium hover:text-primary">
-              Login
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <ResponsiveHeader isLoggedIn={!!session} />
 
       <main>
         {event.banner && (
-          <div className="w-full h-[400px] relative mb-8 bg-muted">
+          <div className="w-full h-[200px] md:h-[300px] lg:h-[400px] relative mb-6 md:mb-8 bg-muted">
             <img
               src={event.banner}
               alt={event.title}
@@ -163,7 +154,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
               <div>
                 <div className="flex flex-wrap gap-2 mb-3">
                   {event.isOnline && (
-                    <span className="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-full flex items-center gap-1">
+                    <span className="px-3 py-1 bg-rose-100 text-rose-700 text-sm rounded-full flex items-center gap-1">
                       <Globe className="w-3 h-3" />
                       Online Event
                     </span>
@@ -176,7 +167,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
                   )}
                 </div>
                 
-                <h1 className="text-3xl font-bold mb-4">{event.title}</h1>
+                <h1 className="text-2xl md:text-3xl font-bold mb-4">{event.title}</h1>
                 
                 <div className="flex flex-wrap gap-4 text-muted-foreground">
                   <div className="flex items-center gap-2">
@@ -201,11 +192,11 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
               </div>
 
               {event.targetAudience && (
-                <div className="flex items-start gap-2 p-4 bg-blue-50 border border-blue-100 rounded-lg">
-                  <Users className="w-5 h-5 text-blue-600 mt-0.5" />
+                <div className="flex items-start gap-2 p-4 bg-rose-50 border border-rose-100 rounded-lg">
+                  <Users className="w-5 h-5 text-rose-600 mt-0.5" />
                   <div>
-                    <p className="font-medium text-blue-800">Who is this event for?</p>
-                    <p className="text-sm text-blue-700">{event.targetAudience}</p>
+                    <p className="font-medium text-rose-800">Who is this event for?</p>
+                    <p className="text-sm text-rose-700">{event.targetAudience}</p>
                   </div>
                 </div>
               )}

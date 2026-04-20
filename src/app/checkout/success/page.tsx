@@ -233,9 +233,9 @@ function PaymentSuccessContent() {
 
           {emailExists === false && !showCreateForm && !showMagicForm && (
             <div className="mb-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left mb-3">
-                <p className="text-blue-700 font-medium text-sm mb-2">Create an account to track your tickets</p>
-                <p className="text-blue-600 text-xs">Save your purchase and access tickets anytime</p>
+              <div className="bg-rose-50 border border-rose-200 rounded-lg p-4 text-left mb-3">
+                <p className="text-rose-700 font-medium text-sm mb-2">Create an account to track your tickets</p>
+                <p className="text-rose-600 text-xs">Save your purchase and access tickets anytime</p>
               </div>
               <div className="flex flex-col gap-2">
                 <Button 

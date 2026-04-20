@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
         resetTokenExpiry: magicTokenExpiry,
         name: "Pending Setup",
         role: "ATTENDEE",
+        defaultDashboard: "attendee",
       },
     });
 

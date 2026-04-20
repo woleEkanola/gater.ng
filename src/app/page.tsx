@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency, formatShortDate } from "@/lib/utils";
 import { HomeRecommendations } from "@/components/home-recommendations";
+import { ResponsiveHeader } from "@/components/responsive-header";
 import { Calendar, MapPin, Search, Heart, ArrowRight, Music, Briefcase, Palette, Utensils, Code, Activity, Shirt, Theater } from "lucide-react";
 import { Metadata } from "next";
 
@@ -87,45 +88,9 @@ export default async function HomePage() {
 
   return (
     <main className="min-h-screen flex flex-col">
-      <header className="border-b sticky top-0 bg-white/95 backdrop-blur z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="text-2xl font-bold text-rose-600">
-            Hitix
-          </Link>
-          <nav className="flex items-center gap-6">
-            <Link href="/events" className="text-sm font-medium hover:text-rose-600">
-              Discover Events
-            </Link>
-            {session ? (
-              <>
-                <Link href="/dashboard" className="text-sm font-medium hover:text-rose-600">
-                  Dashboard
-                </Link>
-                <Link
-                  href="/dashboard/events/new"
-                  className="px-4 py-2 bg-rose-600 text-white rounded-md text-sm font-medium hover:bg-rose-700"
-                >
-                  Create Event
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link href="/auth-route/login" className="text-sm font-medium hover:text-rose-600">
-                  Login
-                </Link>
-                <Link
-                  href="/auth-route/register"
-                  className="px-4 py-2 bg-rose-600 text-white rounded-md text-sm font-medium hover:bg-rose-700"
-                >
-                  Get Started
-                </Link>
-              </>
-            )}
-          </nav>
-        </div>
-      </header>
+      <ResponsiveHeader isLoggedIn={!!session} />
 
-      <section className="relative bg-gradient-to-b from-rose-50 to-white py-16 md:py-24">
+      <section className="relative bg-gradient-to-b from-rose-50 to-white py-12 md:py-24">
         <div className="container mx-auto px-4">
           <div className="text-center max-w-2xl mx-auto mb-12">
             <h1 className="text-4xl md:text-5xl font-bold mb-4">

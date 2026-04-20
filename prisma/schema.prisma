@@ -33,6 +33,7 @@ model User {
   instagram     String?
   facebook      String?
   role          Role      @default(ATTENDEE)
+  defaultDashboard String  @default("organizer")
   isActive     Boolean   @default(true)
   emailVerified DateTime?
   verificationToken String?

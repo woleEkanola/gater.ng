@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, MapPin, Search, Globe, Tag, Heart, X, SlidersHorizontal } from "lucide-react";
+import { Calendar, MapPin, Search, Globe, Tag, Heart, X, SlidersHorizontal, Menu, X as XIcon } from "lucide-react";
 import { formatCurrency, formatShortDate } from "@/lib/utils";
 
 interface Event {
@@ -47,6 +47,7 @@ function EventsContent() {
   const [wishlistedIds, setWishlistedIds] = useState<Set<string>>(new Set());
   const [wishlistLoading, setWishlistLoading] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const [filter, setFilter] = useState(searchParams.get("filter") || "upcoming");
@@ -129,24 +130,61 @@ function EventsContent() {
 
   const hasActiveFilters = priceRange.min || priceRange.max || dateRange.from || dateRange.to;
 
-  return (
+return (
     <div className="min-h-screen">
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="text-2xl font-bold text-primary">
-            Hitix
-          </Link>
-          <nav className="flex items-center gap-4">
-            <Link href="/auth-route/login" className="text-sm font-medium hover:text-primary">
-              Login
+      <header className="border-b sticky top-0 bg-white/95 backdrop-blur z-50">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <Link href="/" className="text-2xl font-bold text-primary">
+              Hitix
             </Link>
-            <Link
-              href="/auth-route/register"
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90"
+            <nav className="hidden md:flex items-center gap-6">
+              <Link href="/events" className="text-sm font-medium hover:text-primary">
+                Discover Events
+              </Link>
+              <Link href="/auth-route/login" className="text-sm font-medium hover:text-primary">
+                Login
+              </Link>
+              <Link
+                href="/auth-route/register"
+                className="px-4 py-2 bg-primary text-white rounded-md text-sm font-medium hover:opacity-90"
+              >
+                Get Started
+              </Link>
+            </nav>
+            <button
+              className="md:hidden p-2"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Toggle menu"
             >
-              Get Started
-            </Link>
-          </nav>
+              {mobileMenuOpen ? <XIcon className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
+          {mobileMenuOpen && (
+            <nav className="md:hidden mt-4 pb-4 border-t pt-4 flex flex-col gap-4">
+              <Link
+                href="/events"
+                className="text-sm font-medium hover:text-primary"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Discover Events
+              </Link>
+              <Link
+                href="/auth-route/login"
+                className="text-sm font-medium hover:text-primary"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Login
+              </Link>
+              <Link
+                href="/auth-route/register"
+                className="px-4 py-2 bg-primary text-white rounded-md text-sm font-medium hover:opacity-90 text-center"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Get Started
+              </Link>
+            </nav>
+          )}
         </div>
       </header>
 
@@ -377,7 +415,7 @@ export default function EventsPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center">
-        <p>Loading events...</p>
+        <p>Loading...</p>
       </div>
     }>
       <EventsContent />

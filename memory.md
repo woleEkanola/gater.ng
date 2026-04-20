@@ -1,6 +1,6 @@
 # Session Memory - Hitix
 
-**Last Updated:** April 18, 2026
+**Last Updated:** April 20, 2026
 
 ---
 
@@ -46,6 +46,37 @@
 - **Files:** [changed files]
 - **Status:** ✅ DONE
 ```
+
+### Default Dashboard Based on Signup Type (Apr 20)
+- **Prompt:** if a user signup first as an organizer then that should be the primary view he sees when he login, there should be a clear prompt to show that he can switch to the attendee dashboard also. same applies if a user first sign up is as an attendee
+- **Plan:** Added defaultDashboard field to User model, set based on signup type
+- **Schema:** Added `defaultDashboard String @default("organizer")` to User model
+- **APIs:**
+  - `/api/auth/register` - Sets defaultDashboard = "organizer" for direct signup
+  - `/api/auth/create-account` - Sets defaultDashboard = "attendee" for post-purchase signup
+  - `/api/auth/send-magic-link` - Sets defaultDashboard = "attendee" for magic link signup
+- **Files:**
+  - `prisma/schema.prisma` - Added defaultDashboard field
+  - `src/app/dashboard/page.tsx` - Uses user.defaultDashboard instead of hardcoded "attendee"
+- **Behavior:**
+  - Direct signup (organizer) → defaults to organizer dashboard
+  - Post-purchase signup (attendee) → defaults to attendee dashboard
+  - Logged-in organizer can browse public pages as attendee without redirect
+- **Status:** ✅ DONE
+
+### Mobile Responsiveness & Color Fix (Apr 20)
+- **Prompt:** the mobile responsiveness of the nav bar appears to be faulty in the public event page... ensure solid mobile responsiveness across board... also color blue ui in some areas
+- **Plan:** Fixed primary color from blue to rose, added responsive mobile navbar with hamburger menu
+- **Files:**
+  - `src/app/globals.css` - Changed primary from blue (221.2) to rose (350 82%)
+  - `src/components/responsive-header.tsx` (new) - Mobile responsive navbar with hamburger menu
+  - `src/app/events/[slug]/page.tsx` - Added ResponsiveHeader, fixed banner height for mobile, replaced blue with rose
+  - `src/app/page.tsx` - Integrated ResponsiveHeader
+  - `src/app/events/page.tsx` - Added mobile responsive header
+  - `src/app/events/page.tsx` - Replaced blue-600 with primary for online event badge
+  - `src/app/checkout/success/page.tsx` - Changed blue-50 to rose-50
+  - `src/app/dashboard/page.tsx` - Changed blue to rose for platform fee note
+- **Status:** ✅ DONE
 
 ### Brand Name Change (Apr 19)
 - **Prompt:** change the brandname to hitix

@@ -77,7 +77,7 @@ export default async function DashboardPage({
   }
 
   const { mode } = await searchParams;
-  const preferredMode = mode || "attendee";
+  const preferredMode = mode || user.defaultDashboard || "attendee";
   const isOrganizer = user.role === "ORGANIZER" || user.role === "ADMIN" || user.role === "SUPERADMIN";
   
   let currentMode: "attendee" | "organizer" = "attendee";
@@ -280,10 +280,10 @@ export default async function DashboardPage({
           </div>
         )}
 
-        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-3">
-          <div className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0">💳</div>
+        <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-lg flex items-start gap-3">
+          <div className="w-5 h-5 text-rose-600 mt-0.5 flex-shrink-0">💳</div>
           <div>
-            <p className="font-medium text-blue-800">
+            <p className="font-medium text-rose-800">
               Platform Fee: {user.transactionFeePercent || 5}%
             </p>
             <p className="text-sm text-muted-foreground mt-1">

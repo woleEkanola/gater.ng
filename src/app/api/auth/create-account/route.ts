@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
         password: hashedPassword,
         name: name || null,
         role: "ATTENDEE",
+        defaultDashboard: "attendee",
       },
     });
 
