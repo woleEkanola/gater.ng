@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, MapPin, Search, Globe, Tag, Heart, X, SlidersHorizontal, Menu, X as XIcon } from "lucide-react";
+import { Calendar, MapPin, Search, Globe, Tag, Heart, X, SlidersHorizontal, Menu, X as XIcon, Music, Briefcase, Palette, Utensils, Code, Activity, Shirt, Theater, ArrowRight } from "lucide-react";
 import { formatCurrency, formatShortDate } from "@/lib/utils";
 import { Footer } from "@/components/footer";
 
@@ -25,18 +25,21 @@ interface Event {
 }
 
 const CATEGORIES = [
-  "Music",
-  "Business",
-  "Technology",
-  "Sports",
-  "Food & Drink",
-  "Arts",
-  "Education",
-  "Health & Wellness",
-  "Fashion",
-  "Entertainment",
-  "Networking",
-  "Other",
+  { name: "Music", icon: Music },
+  { name: "Business", icon: Briefcase },
+  { name: "Arts", icon: Palette },
+  { name: "Food & Drink", icon: Utensils },
+  { name: "Technology", icon: Code },
+  { name: "Sports", icon: Activity },
+  { name: "Fashion", icon: Shirt },
+  { name: "Entertainment", icon: Theater },
+];
+
+const CITIES = [
+  { name: "Lagos", image: "https://images.unsplash.com/photo-1530305408686-3009d04dc10a?w=400&h=300&fit=crop" },
+  { name: "Abuja", image: "https://images.unsplash.com/photo-1569025690938-a00729c9e1f9?w=400&h=300&fit=crop" },
+  { name: "Port Harcourt", image: "https://images.unsplash.com/photo-1579621970563-6ec7560ff3e?w=400&h=300&fit=crop" },
+  { name: "Ibadan", image: "https://images.unsplash.com/photo-1596484552834-6a58f850e0a1?w=400&h=300&fit=crop" },
 ];
 
 function EventsContent() {
@@ -133,10 +136,10 @@ function EventsContent() {
                 Login
               </Link>
               <Link
-                href="/auth-route/register"
+                href="/organizer"
                 className="px-4 py-2 bg-primary text-white rounded-md text-sm font-medium hover:opacity-90"
               >
-                Get Started
+                Create Event
               </Link>
             </nav>
             <button
@@ -157,39 +160,80 @@ function EventsContent() {
                 Discover Events
               </Link>
               <Link
+                href="/organizer"
+                className="text-sm font-medium hover:text-primary"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Create Event
+              </Link>
+              <Link
                 href="/auth-route/login"
                 className="text-sm font-medium hover:text-primary"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Login
               </Link>
-              <Link
-                href="/auth-route/register"
-                className="px-4 py-2 bg-primary text-white rounded-md text-sm font-medium hover:opacity-90 text-center"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Get Started
-              </Link>
             </nav>
           )}
         </div>
       </header>
 
+      <section className="relative bg-gradient-to-b from-primary/10 to-white py-12 md:py-16">
+        <div className="container mx-auto px-4">
+          <div className="text-center max-w-2xl mx-auto mb-8">
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
+              Discover events that
+              <span className="text-primary"> inspire you</span>
+            </h1>
+            <p className="text-lg text-gray-500 mb-8">
+              Find concerts, conferences, workshops, and more happening near you
+            </p>
+            <form className="flex gap-2 max-w-lg mx-auto" onSubmit={handleSearch}>
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search events, locations..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <Button type="submit" className="bg-primary hover:opacity-90 px-6">
+                Search
+              </Button>
+            </form>
+          </div>
+
+          <div className="flex gap-3 overflow-x-auto pb-2 justify-center flex-wrap">
+            <Button
+              variant={category === "" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setCategory("")}
+            >
+              All
+            </Button>
+            {CATEGORIES.map((cat) => (
+              <Link
+                key={cat.name}
+                href={`/browse?category=${cat.name}`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap transition-colors ${
+                  category === cat.name
+                    ? "bg-primary text-white"
+                    : "bg-white border hover:border-primary hover:text-primary"
+                }`}
+              >
+                <cat.icon className="w-4 h-4" />
+                {cat.name}
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <main className="container mx-auto px-4 py-8">
         <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <form onSubmit={handleSearch} className="flex-1 flex gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search events by title or location..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Button type="submit">Search</Button>
-          </form>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button
               variant={filter === "upcoming" ? "default" : "outline"}
               onClick={() => setFilter("upcoming")}
@@ -215,7 +259,7 @@ function EventsContent() {
               <SlidersHorizontal className="w-4 h-4 mr-2" />
               Filters
               {hasActiveFilters && (
-                <span className="ml-1 px-1.5 py-0.5 bg-rose-600 text-white text-xs rounded-full">
+                <span className="ml-1 px-1.5 py-0.5 bg-white text-primary text-xs rounded-full">
                   {[priceRange.min, priceRange.max, dateRange.from, dateRange.to].filter(Boolean).length}
                 </span>
               )}
@@ -273,30 +317,15 @@ function EventsContent() {
           </div>
         )}
 
-        <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
-          <Button
-            variant={category === "" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setCategory("")}
-          >
-            All Categories
-          </Button>
-          {CATEGORIES.map((cat) => (
-            <Button
-              key={cat}
-              variant={category === cat ? "default" : "outline"}
-              size="sm"
-              onClick={() => setCategory(cat)}
-            >
-              {cat}
-            </Button>
-          ))}
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-bold">
+            {filter === "upcoming" ? "Upcoming Events" : filter === "past" ? "Past Events" : "All Events"}
+            {category && <span className="text-muted-foreground font-normal"> in {category}</span>}
+          </h2>
+          <span className="text-sm text-muted-foreground">
+            {events.length} event{events.length !== 1 ? "s" : ""} found
+          </span>
         </div>
-
-        <h1 className="text-3xl font-bold mb-8">
-          {filter === "upcoming" ? "Upcoming Events" : filter === "past" ? "Past Events" : "All Events"}
-          {category && <span className="text-muted-foreground"> in {category}</span>}
-        </h1>
 
         {loading ? (
           <div className="text-center py-16">
@@ -328,7 +357,7 @@ function EventsContent() {
                     >
                       <Heart
                         className={`w-4 h-4 ${
-                          wishlistedIds.has(event.id) ? "fill-rose-600 text-rose-600" : ""
+                          wishlistedIds.has(event.id) ? "fill-primary text-primary" : ""
                         }`}
                       />
                     </button>
@@ -341,7 +370,7 @@ function EventsContent() {
                   </div>
                 )}
                 <CardHeader>
-                  <div className="flex items-start gap-2">
+                  <div className="flex items-start justify-between gap-2">
                     {event.category && (
                       <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded">
                         {event.category}
@@ -383,13 +412,39 @@ function EventsContent() {
             ))}
           </div>
         )}
+
+        {events.length > 0 && (
+          <section className="mt-16">
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-2xl font-bold">Popular Cities</h2>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {CITIES.map((city) => (
+                <Link
+                  key={city.name}
+                  href={`/browse?search=${city.name}`}
+                  className="group relative aspect-[4/3] rounded-lg overflow-hidden"
+                >
+                  <img
+                    src={city.image}
+                    alt={city.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                    <span className="text-white font-semibold text-lg">{city.name}</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
       </main>
       <Footer />
     </div>
   );
 }
 
-export default function EventsPage() {
+export default function BrowsePage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center">
