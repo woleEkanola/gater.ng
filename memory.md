@@ -47,6 +47,24 @@
 - **Status:** ✅ DONE
 ```
 
+### UI/UX Consistency Fixes (Apr 20)
+- **Prompt:** go through the app see is there are issue and inconsistency with the UI/UX
+- **Plan:** Fixed header/footer consistency, created shared components, fixed colors
+- **New Components:**
+  - `src/components/footer.tsx` - Shared footer with navigation links
+- **Updated Pages:**
+  - `/checkout/[eventId]` - Added header with Hitix logo
+  - `/checkout/success` - Added header with Hitix logo
+  - `/tickets/[orderId]` - Added header with Hitix logo
+  - `/events/[slug]` - Added Footer component
+  - `/events/page` - Added Footer component, added responsive header
+  - `/page` - Replaced inline footer with Footer component
+- **Color Fixes:**
+  - `/organizer/page` - Changed all hardcoded `rose-600` to use `primary` CSS variable
+- **Cleanup:**
+  - `/checkout/[eventId]` - Removed console.log statements
+- **Status:** ✅ DONE
+
 ### Default Dashboard Based on Signup Type (Apr 20)
 - **Prompt:** if a user signup first as an organizer then that should be the primary view he sees when he login, there should be a clear prompt to show that he can switch to the attendee dashboard also. same applies if a user first sign up is as an attendee
 - **Plan:** Added defaultDashboard field to User model, set based on signup type

@@ -199,8 +199,16 @@ function PaymentSuccessContent() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="max-w-md w-full">
+    <div className="min-h-screen">
+      <header className="border-b">
+        <div className="container mx-auto px-4 py-4">
+          <Link href="/" className="text-2xl font-bold text-primary">
+            Hitix
+          </Link>
+        </div>
+      </header>
+      <div className="flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
         <CardContent className="pt-6 text-center">
           <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
           <h1 className="text-2xl font-bold mb-2">Payment Successful!</h1>
@@ -347,6 +355,7 @@ function PaymentSuccessContent() {
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

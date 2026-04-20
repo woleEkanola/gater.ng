@@ -2,6 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Printer, Download, Calendar, MapPin, Ticket as TicketIcon, Loader2, Video, ExternalLink, Info } from "lucide-react";
@@ -76,8 +77,15 @@ function TicketContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 print:p-0 print:bg-white">
-      <div className="max-w-md mx-auto">
+    <div className="min-h-screen bg-gray-100">
+      <header className="border-b bg-white print:hidden">
+        <div className="container mx-auto px-4 py-4">
+          <Link href="/" className="text-2xl font-bold text-primary">
+            Hitix
+          </Link>
+        </div>
+      </header>
+      <div className="max-w-md mx-auto p-4">
         <div className="flex gap-2 mb-4 print:hidden">
           <Button onClick={handlePrint} variant="outline">
             <Printer className="w-4 h-4 mr-2" />

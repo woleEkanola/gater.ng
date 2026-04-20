@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WishlistButton } from "@/components/wishlist-button";
 import { FollowButton } from "@/components/follow-button";
 import { ResponsiveHeader } from "@/components/responsive-header";
+import { Footer } from "@/components/footer";
 import { AlertCircle, Calendar, MapPin, User, Globe, Users, Tag, HelpCircle, Image as ImageIcon } from "lucide-react";
 import { FaqAccordion } from "@/components/faq-accordion";
 import { SpeakerGrid } from "@/components/speaker-modal";
@@ -396,6 +397,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
           </div>
         </div>
       </main>
+      <Footer />
     </div>
   );
 }

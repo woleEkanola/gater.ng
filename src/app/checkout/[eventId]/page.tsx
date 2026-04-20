@@ -3,6 +3,8 @@
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,15 +46,11 @@ export default function CheckoutPage({ params, searchParams }: { params: Promise
 
   useEffect(() => {
     async function fetchEvent() {
-      console.log("[CHECKOUT] fetchEvent start - eventId:", eventId, "ticketType:", ticketType);
       try {
         const res = await fetch(`/api/events/${eventId}`);
-        console.log("[CHECKOUT] fetchEvent response status:", res.status);
         const data = await res.json();
-        console.log("[CHECKOUT] fetchEvent response data:", JSON.stringify(data).substring(0, 200));
 
         if (data.error) {
-          console.log("[CHECKOUT] fetchEvent got error:", data.error);
           toast({ title: "Error", description: data.error, variant: "destructive" });
           router.push("/events");
           return;
@@ -61,11 +59,9 @@ export default function CheckoutPage({ params, searchParams }: { params: Promise
         setEvent(data);
 
         if (ticketType) {
-          console.log("[CHECKOUT] Setting cart for ticketType:", ticketType);
           setCart({ [ticketType]: 1 });
         }
       } catch (error) {
-        console.log("[CHECKOUT] fetchEvent caught error:", error);
         toast({ title: "Error", description: "Failed to load event", variant: "destructive" });
       } finally {
         setIsLoadingEvent(false);
@@ -250,10 +246,15 @@ export default function CheckoutPage({ params, searchParams }: { params: Promise
     <div className="min-h-screen bg-background">
       <header className="border-b">
         <div className="container mx-auto px-4 py-4">
-          <Link href={event ? `/events/${event.slug || event.id}` : "/events"} className="flex items-center gap-2 text-sm hover:text-primary">
-            <ArrowLeft className="w-4 h-4" />
-            Back to Event
-          </Link>
+          <div className="flex items-center justify-between">
+            <Link href="/" className="text-2xl font-bold text-primary">
+              Hitix
+            </Link>
+            <Link href={event ? `/events/${event.slug || event.id}` : "/events"} className="flex items-center gap-2 text-sm hover:text-primary">
+              <ArrowLeft className="w-4 h-4" />
+              Back to Event
+            </Link>
+          </div>
         </div>
       </header>
 

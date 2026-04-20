@@ -7,19 +7,19 @@ export default function OrganizerPage() {
     <div className="min-h-screen">
       <header className="border-b">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="text-2xl font-bold text-rose-600">
+          <Link href="/" className="text-2xl font-bold text-primary">
             Hitix
           </Link>
           <nav className="flex items-center gap-4">
-            <Link href="/events" className="text-sm font-medium hover:text-rose-600">
+            <Link href="/events" className="text-sm font-medium hover:text-primary">
               Discover Events
             </Link>
-            <Link href="/auth-route/login" className="text-sm font-medium hover:text-rose-600">
+            <Link href="/auth-route/login" className="text-sm font-medium hover:text-primary">
               Login
             </Link>
             <Link
               href="/auth-route/register"
-              className="px-4 py-2 bg-rose-600 text-white rounded-md text-sm font-medium hover:bg-rose-700"
+              className="px-4 py-2 bg-primary text-white rounded-md text-sm font-medium hover:opacity-90"
             >
               Get Started
             </Link>
@@ -31,7 +31,7 @@ export default function OrganizerPage() {
         <div className="text-center max-w-3xl mx-auto mb-16">
           <h1 className="text-4xl md:text-5xl font-bold mb-6">
             Create unforgettable
-            <span className="text-rose-600"> events</span>
+            <span className="text-primary"> events</span>
           </h1>
           <p className="text-xl text-gray-500 mb-8">
             The easiest way to plan, promote, and sell tickets for your events. 
@@ -40,7 +40,7 @@ export default function OrganizerPage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/auth-route/register"
-              className="px-8 py-3 bg-rose-600 text-white rounded-md font-medium hover:bg-rose-700 inline-flex items-center justify-center gap-2"
+              className="px-8 py-3 bg-primary text-white rounded-md font-medium hover:opacity-90 inline-flex items-center justify-center gap-2"
             >
               Start Selling Tickets Free
               <ArrowRight className="w-5 h-5" />
@@ -62,7 +62,7 @@ export default function OrganizerPage() {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             <div className="p-6 border rounded-lg">
               <div className="w-12 h-12 bg-rose-100 rounded-full flex items-center justify-center mb-4">
-                <Ticket className="w-6 h-6 text-rose-600" />
+                <Ticket className="w-6 h-6 text-primary" />
               </div>
               <h3 className="text-xl font-semibold mb-2">Easy Ticket Creation</h3>
               <p className="text-gray-500">
@@ -72,7 +72,7 @@ export default function OrganizerPage() {
 
             <div className="p-6 border rounded-lg">
               <div className="w-12 h-12 bg-rose-100 rounded-full flex items-center justify-center mb-4">
-                <Smartphone className="w-6 h-6 text-rose-600" />
+                <Smartphone className="w-6 h-6 text-primary" />
               </div>
               <h3 className="text-xl font-semibold mb-2">Mobile Ticketing</h3>
               <p className="text-gray-500">
@@ -82,7 +82,7 @@ export default function OrganizerPage() {
 
             <div className="p-6 border rounded-lg">
               <div className="w-12 h-12 bg-rose-100 rounded-full flex items-center justify-center mb-4">
-                <CreditCard className="w-6 h-6 text-rose-600" />
+                <CreditCard className="w-6 h-6 text-primary" />
               </div>
               <h3 className="text-xl font-semibold mb-2">Instant Payments</h3>
               <p className="text-gray-500">
@@ -92,7 +92,7 @@ export default function OrganizerPage() {
 
             <div className="p-6 border rounded-lg">
               <div className="w-12 h-12 bg-rose-100 rounded-full flex items-center justify-center mb-4">
-                <BarChart className="w-6 h-6 text-rose-600" />
+                <BarChart className="w-6 h-6 text-primary" />
               </div>
               <h3 className="text-xl font-semibold mb-2">Real-time Analytics</h3>
               <p className="text-gray-500">
@@ -102,7 +102,7 @@ export default function OrganizerPage() {
 
             <div className="p-6 border rounded-lg">
               <div className="w-12 h-12 bg-rose-100 rounded-full flex items-center justify-center mb-4">
-                <Users className="w-6 h-6 text-rose-600" />
+                <Users className="w-6 h-6 text-primary" />
               </div>
               <h3 className="text-xl font-semibold mb-2">Attendee Management</h3>
               <p className="text-gray-500">
@@ -112,7 +112,7 @@ export default function OrganizerPage() {
 
             <div className="p-6 border rounded-lg">
               <div className="w-12 h-12 bg-rose-100 rounded-full flex items-center justify-center mb-4">
-                <Calendar className="w-6 h-6 text-rose-600" />
+                <Calendar className="w-6 h-6 text-primary" />
               </div>
               <h3 className="text-xl font-semibold mb-2">Event Pages</h3>
               <p className="text-gray-500">
@@ -155,7 +155,7 @@ export default function OrganizerPage() {
               </ul>
               <Link
                 href="/auth-route/register"
-                className="block w-full py-3 bg-rose-600 text-white text-center rounded-md font-medium hover:bg-rose-700"
+                className="block w-full py-3 bg-primary text-white text-center rounded-md font-medium hover:opacity-90"
               >
                 Create Free Account
               </Link>
@@ -172,7 +172,7 @@ export default function OrganizerPage() {
           </p>
           <Link
             href="/auth-route/register"
-            className="px-8 py-3 bg-rose-600 text-white rounded-md font-medium hover:bg-rose-700 inline-block"
+            className="px-8 py-3 bg-primary text-white rounded-md font-medium hover:opacity-90 inline-block"
           >
             Get Started Free
           </Link>
@@ -182,10 +182,10 @@ export default function OrganizerPage() {
       <footer className="border-t py-8 bg-gray-50">
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="text-2xl font-bold text-rose-600">Hitix</div>
+            <div className="text-2xl font-bold text-primary">Hitix</div>
             <nav className="flex items-center gap-6 text-sm text-gray-500">
-              <Link href="/events" className="hover:text-rose-600">Discover Events</Link>
-              <Link href="/organizer/demo" className="hover:text-rose-600">Demo</Link>
+              <Link href="/events" className="hover:text-primary">Discover Events</Link>
+              <Link href="/organizer/demo" className="hover:text-primary">Demo</Link>
               <span>&copy; {new Date().getFullYear()} Hitix</span>
             </nav>
           </div>

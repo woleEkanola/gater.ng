@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, MapPin, Search, Globe, Tag, Heart, X, SlidersHorizontal, Menu, X as XIcon } from "lucide-react";
 import { formatCurrency, formatShortDate } from "@/lib/utils";
+import { Footer } from "@/components/footer";
 
 interface Event {
   id: string;
@@ -407,6 +408,7 @@ return (
           </div>
         )}
       </main>
+      <Footer />
     </div>
   );
 }

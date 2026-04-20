@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency, formatShortDate } from "@/lib/utils";
 import { HomeRecommendations } from "@/components/home-recommendations";
 import { ResponsiveHeader } from "@/components/responsive-header";
+import { Footer } from "@/components/footer";
 import { Calendar, MapPin, Search, Heart, ArrowRight, Music, Briefcase, Palette, Utensils, Code, Activity, Shirt, Theater } from "lucide-react";
 import { Metadata } from "next";
 
@@ -283,18 +284,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <footer className="border-t py-8">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="text-2xl font-bold text-rose-600">Hitix</div>
-            <nav className="flex items-center gap-6 text-sm text-gray-500">
-              <Link href="/events" className="hover:text-rose-600">Discover Events</Link>
-              <Link href={session ? "/dashboard/events/new" : "/register"} className="hover:text-rose-600">Create Event</Link>
-              <span>&copy; {new Date().getFullYear()} Hitix</span>
-            </nav>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </main>
   );
 }
