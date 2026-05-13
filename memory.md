@@ -83,6 +83,21 @@
   - `src/app/admin_dash/page.tsx` - Added "Edit" button linking to `/dashboard/events/[id]` for each event
 - **Status:** ✅ DONE
 
+### Organizer Profile Image Upload (May 10)
+- **Prompt:** Event organizer should be able to upload profile image for their profile
+- **Plan:** Added profile image upload using UploadThing, integrated into profile page and auth session
+- **Schema:** No changes needed — `image String?` already existed on User model
+- **APIs:**
+  - `/api/user/profile` PUT — Now accepts and saves `image` field
+- **Components:**
+  - `src/components/ui/profile-image-upload.tsx` - New circular avatar upload component with camera button and remove option
+- **Files:**
+  - `src/lib/uploadthing.ts` - Added `profileImage` endpoint
+  - `src/lib/auth.ts` - Added `image` to authorize(), JWT callback, and session callback
+  - `src/app/dashboard/profile/page.tsx` - Integrated ProfileImageUpload component and added image to form state
+  - `src/app/api/user/profile/route.ts` - PUT handler now saves image field
+- **Status:** ✅ DONE
+
 ### Routing & Landing Page Changes (Apr 21)
 - **Prompt:** the primary landing page should be aimed at event organizers while the current landing page should be /browse
 - **Plan:** Changed routing - root redirects to /organizer, created /browse for event discovery

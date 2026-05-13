@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
-import { Loader2, User, Globe, Twitter, Instagram, Facebook, Camera } from "lucide-react";
+import { ProfileImageUpload } from "@/components/ui/profile-image-upload";
+import { Loader2, User, Globe, Twitter, Instagram, Facebook } from "lucide-react";
 
 interface Profile {
   id: string;
@@ -30,6 +31,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [formData, setFormData] = useState({
     name: "",
+    image: "",
     bio: "",
     website: "",
     twitter: "",
@@ -51,6 +53,7 @@ export default function ProfilePage() {
           setProfile(data);
           setFormData({
             name: data.name || "",
+            image: data.image || "",
             bio: data.bio || "",
             website: data.website || "",
             twitter: data.twitter || "",
@@ -70,7 +73,7 @@ export default function ProfilePage() {
       const res = await fetch("/api/user/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, image: formData.image || undefined }),
       });
       if (!res.ok) throw new Error("Failed to update");
       toast({ title: "Success", description: "Profile updated successfully" });
@@ -109,13 +112,10 @@ export default function ProfilePage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center gap-4">
-                <div className="w-20 h-20 rounded-full bg-rose-100 flex items-center justify-center overflow-hidden">
-                  {profile?.image ? (
-                    <img src={profile.image} alt="Avatar" className="w-full h-full object-cover" />
-                  ) : (
-                    <User className="w-8 h-8 text-rose-600" />
-                  )}
-                </div>
+                <ProfileImageUpload
+                  value={formData.image}
+                  onChange={(url) => setFormData({ ...formData, image: url })}
+                />
                 <div>
                   <p className="font-medium">{profile?.name || "Your Name"}</p>
                   <p className="text-sm text-muted-foreground">{profile?.email}</p>
