@@ -98,6 +98,21 @@
   - `src/app/api/user/profile/route.ts` - PUT handler now saves image field
 - **Status:** ✅ DONE
 
+### Event Banner Crop Preview (May 10)
+- **Prompt:** Event cover image should be 1200x600px — show crop preview with areas that will be cropped off so user can resize/reposition
+- **Plan:** Replaced simple banner upload with `BannerCropUpload` component using `react-easy-crop`
+- **Features:**
+  - Aspect ratio locked to 2:1 (1200x600)
+  - Dark overlay on areas outside the crop
+  - Drag to reposition, slider to zoom in/out
+  - Client-side canvas crop before uploading to UploadThing
+  - Preview existing banner in 2:1 ratio
+- **Files:**
+  - `src/components/ui/banner-crop-upload.tsx` - New crop upload component
+  - `src/app/dashboard/events/[id]/page.tsx` - Swapped `ImageUpload` for `BannerCropUpload`
+- **Dependencies:** `react-easy-crop`
+- **Status:** ✅ DONE
+
 ### Routing & Landing Page Changes (Apr 21)
 - **Prompt:** the primary landing page should be aimed at event organizers while the current landing page should be /browse
 - **Plan:** Changed routing - root redirects to /organizer, created /browse for event discovery

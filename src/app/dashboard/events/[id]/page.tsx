@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { formatCurrency } from "@/lib/utils";
 import { CopyLinkButton } from "@/components/copy-link-button";
-import { ImageUpload } from "@/components/ui/upload-button";
+import { BannerCropUpload } from "@/components/ui/banner-crop-upload";
 import { SpeakerImageUpload } from "@/components/ui/speaker-image-upload";
 import { GalleryUpload } from "@/components/ui/gallery-upload";
 import { TicketImageUpload } from "@/components/ui/ticket-image-upload";
@@ -837,13 +837,12 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <ImageUpload
+              <BannerCropUpload
                 value={event.banner || ""}
                 onChange={handleBannerChange}
-                loading={uploadingBanner}
               />
               <p className="text-sm text-muted-foreground mt-2">
-                Recommended size: 1200x600px. This image will be used as the preview when sharing your event link.
+                Recommended size: 1200x600px (2:1 ratio). Images are automatically cropped to fit.
               </p>
             </CardContent>
           </Card>
