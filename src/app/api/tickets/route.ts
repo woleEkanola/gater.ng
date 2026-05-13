@@ -14,7 +14,18 @@ export async function GET(request: NextRequest) {
       where: { id: orderId },
       include: {
         event: { include: { ticketTypes: true } },
-        tickets: { include: { ticketType: true } },
+        tickets: {
+          include: {
+            ticketType: {
+              select: {
+                id: true,
+                name: true,
+                price: true,
+                image: true,
+              },
+            },
+          },
+        },
       },
     });
 

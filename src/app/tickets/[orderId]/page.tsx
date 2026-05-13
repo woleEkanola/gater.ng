@@ -11,7 +11,7 @@ interface Ticket {
   id: string;
   ticketId: string;
   qrCode: string;
-  ticketType: { name: string };
+  ticketType: { name: string; image?: string | null };
 }
 
 interface Order {
@@ -133,6 +133,13 @@ function TicketContent() {
                   <span>{ticket.ticketType.name}</span>
                 </div>
               </div>
+              {ticket.ticketType.image && (
+                <div className="mt-3">
+                  <div className="w-16 h-16 rounded-lg overflow-hidden bg-muted">
+                    <img src={ticket.ticketType.image} alt={ticket.ticketType.name} className="w-full h-full object-cover" />
+                  </div>
+                </div>
+              )}
             </div>
 
             {isOnlineEvent && order.event.accessInstructions && (

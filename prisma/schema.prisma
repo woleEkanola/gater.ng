@@ -44,6 +44,7 @@ model User {
   resetTokenExpiry DateTime?
   
   payoutBankCode           String?
+  payoutBankName           String?
   payoutAccountNumber      String?
   payoutAccountName       String?
   paystackSubaccountCode  String?
@@ -154,6 +155,7 @@ model TicketType {
   price      Int
   quantity   Int
   soldCount  Int       @default(0)
+  image      String?
   salesStart DateTime?
   salesEnd   DateTime?
   eventId    String

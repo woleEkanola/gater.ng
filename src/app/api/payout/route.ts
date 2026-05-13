@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { fetchPaystackBanks } from "@/lib/paystack-banks";
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 const BASE_URL = process.env.NEXTAUTH_URL || "http://localhost:3000";
@@ -73,19 +74,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email! },
-      select: {
-        payoutBankCode: true,
-        payoutAccountNumber: true,
-        payoutAccountName: true,
-        paystackSubaccountCode: true,
-        paystackSettlementBank: true,
-        transactionFeePercent: true,
-      },
-    });
+    const [user, banks] = await Promise.all([
+      prisma.user.findUnique({
+        where: { email: session.user.email! },
+        select: {
+          payoutBankCode: true,
+          payoutBankName: true,
+          payoutAccountNumber: true,
+          payoutAccountName: true,
+          paystackSubaccountCode: true,
+          paystackSettlementBank: true,
+          transactionFeePercent: true,
+        },
+      }),
+      fetchPaystackBanks(),
+    ]);
 
-    return NextResponse.json(user);
+    return NextResponse.json({ ...user, banks });
   } catch (error) {
     console.error("Error fetching payout settings:", error);
     return NextResponse.json({ error: "Failed to fetch settings" }, { status: 500 });
@@ -100,7 +105,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { payoutBankCode, payoutAccountNumber, payoutAccountName } = body;
+    const { payoutBankCode, payoutBankName, payoutAccountNumber, payoutAccountName } = body;
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email! },
@@ -130,6 +135,7 @@ export async function POST(request: NextRequest) {
         where: { id: user.id },
         data: {
           payoutBankCode,
+          payoutBankName: payoutBankName || undefined,
           payoutAccountNumber,
           payoutAccountName: accountNameFromBank,
           paystackSettlementBank: payoutBankCode,
@@ -153,6 +159,7 @@ export async function POST(request: NextRequest) {
       where: { id: user.id },
       data: {
         payoutBankCode,
+        payoutBankName: payoutBankName || undefined,
         payoutAccountNumber,
         payoutAccountName: accountNameFromBank,
         paystackSubaccountCode: subaccount.subaccountCode,

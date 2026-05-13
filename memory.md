@@ -1,6 +1,6 @@
 # Session Memory - Hitix
 
-**Last Updated:** April 20, 2026
+**Last Updated:** April 21, 2026
 
 ---
 
@@ -46,6 +46,56 @@
 - **Files:** [changed files]
 - **Status:** ✅ DONE
 ```
+
+### Multi-Feature Update: Ticket Images, Event Update Fix, Superadmin Edit, Bank Dropdown (May 10)
+- **Prompt:** 
+  1. Allow organizers to optionally upload images for each ticket type
+  2. Fix audience type updates not persisting (and all other missing fields in event update API)
+  3. Allow superadmins to edit every part of all events
+  4. Replace bank code input with bank name dropdown in payout settings
+- **Plan:** 
+  - Added `image` field to TicketType model with UploadThing support
+  - Fixed `PUT /api/events/[slug]` to persist ALL editable fields (targetAudience, category, speakerLabel, isOnline, streamingLink, accessInstructions, contact info, social links)
+  - Expanded auth checks to allow SUPERADMIN alongside ADMIN for event/ticket type edits
+  - Integrated Paystack `/bank` API for searchable bank name dropdown
+- **Schema Changes:**
+  - `prisma/schema.prisma` - Added `image String?` to TicketType, `payoutBankName String?` to User
+- **APIs:**
+  - `/api/ticket-types` - Accepts `image` on POST, allows SUPERADMIN edits
+  - `/api/events/[slug]` - PUT now persists all fields, allows SUPERADMIN edits
+  - `/api/tickets` - Returns `ticketType.image` in queries
+  - `/api/payout` - GET returns Paystack bank list, POST stores `payoutBankName`
+- **Files:**
+  - `prisma/schema.prisma` - Added image + payoutBankName fields
+  - `src/lib/uploadthing.ts` - Added `ticketTypeImage` endpoint
+  - `src/lib/paystack-banks.ts` - New utility to fetch Paystack bank list
+  - `src/components/ui/ticket-image-upload.tsx` - New upload component
+  - `src/components/ui/bank-select.tsx` - New searchable bank dropdown component
+  - `src/app/api/ticket-types/route.ts` - Image support + SUPERADMIN auth
+  - `src/app/api/events/[slug]/route.ts` - Full field persistence + SUPERADMIN auth
+  - `src/app/api/tickets/route.ts` - Include ticket image in response
+  - `src/app/api/payout/route.ts` - Bank list + bank name storage
+  - `src/app/dashboard/events/[id]/page.tsx` - Ticket image UI + fixed state updates
+  - `src/app/dashboard/payout/page.tsx` - Bank dropdown integration
+  - `src/app/events/[slug]/page.tsx` - Display ticket images
+  - `src/app/tickets/[orderId]/page.tsx` - Display ticket images
+  - `src/app/checkout/[eventId]/page.tsx` - Display ticket images
+  - `src/app/admin_dash/page.tsx` - Added "Edit" button linking to `/dashboard/events/[id]` for each event
+- **Status:** ✅ DONE
+
+### Routing & Landing Page Changes (Apr 21)
+- **Prompt:** the primary landing page should be aimed at event organizers while the current landing page should be /browse
+- **Plan:** Changed routing - root redirects to /organizer, created /browse for event discovery
+- **Changes:**
+  - `/` - Now redirects to `/organizer`
+  - `/organizer` - Primary landing page for organizers
+  - `/browse` - Event discovery page (full home page experience)
+  - `/events` - Redirects to `/browse`
+- **Files:**
+  - `src/app/page.tsx` - Now redirects to /organizer
+  - `src/app/browse/page.tsx` - Full event discovery with hero, categories, cities, events
+  - `src/app/events/page.tsx` - Redirects to /browse
+- **Status:** ✅ DONE
 
 ### UI/UX Consistency Fixes (Apr 20)
 - **Prompt:** go through the app see is there are issue and inconsistency with the UI/UX

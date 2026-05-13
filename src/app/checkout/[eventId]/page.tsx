@@ -19,6 +19,7 @@ interface TicketType {
   price: number;
   quantity: number;
   soldCount: number;
+  image?: string | null;
 }
 
 interface Event {
@@ -312,11 +313,18 @@ export default function CheckoutPage({ params, searchParams }: { params: Promise
 
                 return (
                   <div key={ticketType.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <p className="font-medium">{ticketType.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {formatCurrency(ticketType.price)} • {available} available
-                      </p>
+                    <div className="flex items-center gap-3">
+                      {ticketType.image && (
+                        <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+                          <img src={ticketType.image} alt={ticketType.name} className="w-full h-full object-cover" />
+                        </div>
+                      )}
+                      <div>
+                        <p className="font-medium">{ticketType.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {formatCurrency(ticketType.price)} • {available} available
+                        </p>
+                      </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <Button

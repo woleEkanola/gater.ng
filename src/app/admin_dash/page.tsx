@@ -17,6 +17,7 @@ import {
   Download,
   Star,
   Trash2,
+  Pencil,
   MoreVertical
 } from "lucide-react";
 
@@ -400,6 +401,13 @@ export default function AdminDashboard() {
                         <td className="p-4 text-muted-foreground">{formatDate(event.dateTime)}</td>
                         <td className="p-4">
                           <div className="flex gap-2">
+                            <Link
+                              href={`/dashboard/events/${event.id}`}
+                              className="p-2 rounded hover:bg-blue-100 text-blue-600"
+                              title="Edit Event"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Link>
                             <button
                               onClick={() => handleFeatureEvent(event.id, !event.isFeatured)}
                               className={`p-2 rounded hover:bg-gray-100 ${event.isFeatured ? "text-rose-600" : "text-gray-400"}`}

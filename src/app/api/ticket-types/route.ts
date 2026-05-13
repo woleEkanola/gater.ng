@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { eventId, name, price, quantity, salesStart, salesEnd } = body;
+    const { eventId, name, price, quantity, salesStart, salesEnd, image } = body;
 
     if (!eventId || !name || price === undefined || !quantity) {
       return NextResponse.json(
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       where: { email: session.user.email! },
     });
 
-    if (!user || (event.organizerId !== user.id && user.role !== "ADMIN")) {
+    if (!user || (event.organizerId !== user.id && user.role !== "ADMIN" && user.role !== "SUPERADMIN")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
         name,
         price: Math.round(price * 100),
         quantity,
+        ...(image && { image }),
         ...(salesStart && { salesStart: new Date(salesStart) }),
         ...(salesEnd && { salesEnd: new Date(salesEnd) }),
       },
@@ -82,7 +83,7 @@ export async function PUT(request: NextRequest) {
       where: { email: session.user.email! },
     });
 
-    if (!user || ticketType.event.organizerId !== user.id) {
+    if (!user || (ticketType.event.organizerId !== user.id && user.role !== "SUPERADMIN")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

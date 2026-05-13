@@ -74,22 +74,41 @@ export async function PUT(
       where: { email: session.user.email! },
     });
 
-    if (!user || (event.organizerId !== user.id && user.role !== "ADMIN")) {
+    if (!user || (event.organizerId !== user.id && user.role !== "ADMIN" && user.role !== "SUPERADMIN")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const body = await request.json();
-    const { title, description, banner, location, dateTime, isPublished } = body;
+    const {
+      title, description, banner, location, dateTime, isPublished,
+      isOnline, streamingLink, accessInstructions, category, targetAudience,
+      speakerLabel, contactEmail, contactPhone, websiteUrl, twitterUrl,
+      facebookUrl, instagramUrl, youtubeUrl, linkedinUrl,
+    } = body;
 
     const updatedEvent = await prisma.event.update({
       where: { id: slug },
       data: {
-        ...(title && { title }),
+        ...(title !== undefined && { title }),
         ...(description !== undefined && { description }),
         ...(banner !== undefined && { banner }),
-        ...(location && { location }),
-        ...(dateTime && { dateTime: new Date(dateTime) }),
+        ...(location !== undefined && { location }),
+        ...(dateTime !== undefined && { dateTime: new Date(dateTime) }),
         ...(isPublished !== undefined && { isPublished }),
+        ...(isOnline !== undefined && { isOnline }),
+        ...(streamingLink !== undefined && { streamingLink }),
+        ...(accessInstructions !== undefined && { accessInstructions }),
+        ...(category !== undefined && { category }),
+        ...(targetAudience !== undefined && { targetAudience }),
+        ...(speakerLabel !== undefined && { speakerLabel }),
+        ...(contactEmail !== undefined && { contactEmail }),
+        ...(contactPhone !== undefined && { contactPhone }),
+        ...(websiteUrl !== undefined && { websiteUrl }),
+        ...(twitterUrl !== undefined && { twitterUrl }),
+        ...(facebookUrl !== undefined && { facebookUrl }),
+        ...(instagramUrl !== undefined && { instagramUrl }),
+        ...(youtubeUrl !== undefined && { youtubeUrl }),
+        ...(linkedinUrl !== undefined && { linkedinUrl }),
       },
       include: {
         organizer: { select: { id: true, name: true, email: true } },
@@ -128,7 +147,7 @@ export async function DELETE(
       where: { email: session.user.email! },
     });
 
-    if (!user || (event.organizerId !== user.id && user.role !== "ADMIN")) {
+    if (!user || (event.organizerId !== user.id && user.role !== "ADMIN" && user.role !== "SUPERADMIN")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

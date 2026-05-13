@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
+import { BankSelect } from "@/components/ui/bank-select";
 import { Building2, ChevronLeft } from "lucide-react";
 
 const payoutSchema = z.object({
@@ -24,11 +25,14 @@ export default function PayoutSettingsPage() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [banks, setBanks] = useState<{ name: string; code: string }[]>([]);
+  const [selectedBankName, setSelectedBankName] = useState("");
 
   const {
     register,
     handleSubmit,
     setValue,
+    watch,
     formState: { errors },
   } = useForm<PayoutFormData>({
     resolver: zodResolver(payoutSchema),
@@ -43,6 +47,8 @@ export default function PayoutSettingsPage() {
           if (data.payoutBankCode) setValue("payoutBankCode", data.payoutBankCode);
           if (data.payoutAccountNumber) setValue("payoutAccountNumber", data.payoutAccountNumber);
           if (data.payoutAccountName) setValue("payoutAccountName", data.payoutAccountName);
+          if (data.banks) setBanks(data.banks);
+          if (data.payoutBankName) setSelectedBankName(data.payoutBankName);
         }
       } catch (error) {
         console.error("Error fetching settings:", error);
@@ -59,7 +65,7 @@ export default function PayoutSettingsPage() {
       const res = await fetch("/api/payout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, payoutBankName: selectedBankName }),
       });
 
       const result = await res.json();
@@ -109,11 +115,14 @@ export default function PayoutSettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="payoutBankCode">Bank Code</Label>
-                <Input
-                  id="payoutBankCode"
-                  {...register("payoutBankCode")}
-                  placeholder="e.g., 011"
+                <Label>Bank</Label>
+                <BankSelect
+                  banks={banks}
+                  value={watch("payoutBankCode")}
+                  onChange={(code, name) => {
+                    setValue("payoutBankCode", code);
+                    setSelectedBankName(name);
+                  }}
                 />
                 {errors.payoutBankCode && (
                   <p className="text-sm text-destructive">{errors.payoutBankCode.message}</p>

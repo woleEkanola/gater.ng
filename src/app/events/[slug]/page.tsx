@@ -294,11 +294,18 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
                         key={ticketType.id}
                         className="flex justify-between items-center p-4 border rounded-lg"
                       >
-                        <div>
-                          <p className="font-medium">{ticketType.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {ticketType.quantity - ticketType.soldCount} remaining
-                          </p>
+                        <div className="flex items-center gap-3">
+                          {ticketType.image && (
+                            <div className="w-14 h-14 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+                              <img src={ticketType.image} alt={ticketType.name} className="w-full h-full object-cover" />
+                            </div>
+                          )}
+                          <div>
+                            <p className="font-medium">{ticketType.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {ticketType.quantity - ticketType.soldCount} remaining
+                            </p>
+                          </div>
                         </div>
                         <div className="text-right">
                           <p className="font-bold">

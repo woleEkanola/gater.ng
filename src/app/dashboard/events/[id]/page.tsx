@@ -17,6 +17,7 @@ import { CopyLinkButton } from "@/components/copy-link-button";
 import { ImageUpload } from "@/components/ui/upload-button";
 import { SpeakerImageUpload } from "@/components/ui/speaker-image-upload";
 import { GalleryUpload } from "@/components/ui/gallery-upload";
+import { TicketImageUpload } from "@/components/ui/ticket-image-upload";
 import { Download, Users, DollarSign, Ticket, Link as LinkIcon, Image, Pencil, Globe, Tag, Trash2, Plus, Percent, HelpCircle, Eye, EyeOff } from "lucide-react";
 
 const ticketTypeSchema = z.object({
@@ -52,6 +53,7 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
   const [editedCategory, setEditedCategory] = useState("");
   const [editedTargetAudience, setEditedTargetAudience] = useState("");
   const [editedSpeakerLabel, setEditedSpeakerLabel] = useState("");
+  const [ticketImage, setTicketImage] = useState("");
   const [discountCodes, setDiscountCodes] = useState<any[]>([]);
   const [showDiscountForm, setShowDiscountForm] = useState(false);
   const [savingDiscount, setSavingDiscount] = useState(false);
@@ -462,17 +464,25 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
         toast({ title: "Error", description: result.error, variant: "destructive" });
         return;
       }
-      setEvent({ 
-        ...event, 
-        title: editedTitle, 
-        description: editedDescription, 
-        location: editedIsOnline ? "Online" : editedLocation, 
+      setEvent({
+        ...event,
+        title: editedTitle,
+        description: editedDescription,
+        location: editedIsOnline ? "Online" : editedLocation,
         dateTime: result.dateTime,
         isOnline: editedIsOnline,
         streamingLink: editedStreamingLink,
         accessInstructions: editedAccessInstructions,
         category: editedCategory,
         targetAudience: editedTargetAudience,
+        speakerLabel: editedSpeakerLabel,
+        contactEmail: editedContactEmail,
+        contactPhone: editedContactPhone,
+        websiteUrl: editedWebsiteUrl,
+        twitterUrl: editedTwitterUrl,
+        facebookUrl: editedFacebookUrl,
+        instagramUrl: editedInstagramUrl,
+        youtubeUrl: editedYoutubeUrl,
       });
       setIsEditingDetails(false);
       toast({ title: "Success", description: "Event details updated" });
@@ -540,7 +550,7 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
       const res = await fetch("/api/ticket-types", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, eventId: eventId }),
+        body: JSON.stringify({ ...data, eventId: eventId, image: ticketImage || undefined }),
       });
 
       const result = await res.json();
@@ -552,6 +562,7 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
 
       setTicketTypes([...ticketTypes, result]);
       reset();
+      setTicketImage("");
       toast({ title: "Success", description: "Ticket type added" });
     } catch {
       toast({ title: "Error", description: "Something went wrong", variant: "destructive" });
@@ -1315,6 +1326,12 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
                   )}
                 </div>
 
+                <div className="space-y-2">
+                  <Label>Ticket Image (Optional)</Label>
+                  <TicketImageUpload value={ticketImage} onChange={setTicketImage} />
+                  <p className="text-xs text-muted-foreground">Optional image to represent this ticket type</p>
+                </div>
+
                 <Button type="submit" disabled={isLoading}>
                   {isLoading ? "Adding..." : "Add Ticket Type"}
                 </Button>
@@ -1333,11 +1350,18 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
                 <div className="space-y-4">
                   {ticketTypes.map((tt) => (
                     <div key={tt.id} className="flex justify-between items-center p-4 border rounded-lg">
-                      <div>
-                        <p className="font-medium">{tt.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {formatCurrency(tt.price)} • {tt.quantity} available • {tt.soldCount} sold
-                        </p>
+                      <div className="flex items-center gap-3">
+                        {tt.image && (
+                          <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+                            <img src={tt.image} alt={tt.name} className="w-full h-full object-cover" />
+                          </div>
+                        )}
+                        <div>
+                          <p className="font-medium">{tt.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {formatCurrency(tt.price)} • {tt.quantity} available • {tt.soldCount} sold
+                          </p>
+                        </div>
                       </div>
                       {tt.soldCount === 0 && (
                         <Button 
