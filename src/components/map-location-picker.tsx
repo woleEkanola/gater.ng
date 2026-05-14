@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
-import { Search, MapPin, Loader2, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Search, MapPin, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -72,27 +71,38 @@ export function MapLocationPicker({
       : null
   );
 
-  const searchAddress = useCallback(async (query: string) => {
-    if (!query.trim() || query.length < 3) {
+  // Debounced search using useEffect
+  useEffect(() => {
+    const trimmed = searchQuery.trim();
+    if (!trimmed || trimmed.length < 3) {
       setSuggestions([]);
+      setShowSuggestions(false);
       return;
     }
-    setIsSearching(true);
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`,
-        { headers: { "Accept-Language": "en" } }
-      );
-      const data = await res.json();
-      setSuggestions(data || []);
-      setShowSuggestions(true);
-    } catch (error) {
-      console.error("Search error:", error);
-      setSuggestions([]);
-    } finally {
-      setIsSearching(false);
-    }
-  }, []);
+
+    const timeout = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const res = await fetch(
+          `/api/location/search?q=${encodeURIComponent(trimmed)}`
+        );
+        if (!res.ok) {
+          setSuggestions([]);
+          return;
+        }
+        const data = await res.json();
+        setSuggestions(data || []);
+        setShowSuggestions(true);
+      } catch (error) {
+        console.error("Search error:", error);
+        setSuggestions([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 800); // 800ms debounce
+
+    return () => clearTimeout(timeout);
+  }, [searchQuery]);
 
   const handleSelect = (result: NominatimResult) => {
     const lat = parseFloat(result.lat);
@@ -161,7 +171,7 @@ export function MapLocationPicker({
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
-                  searchAddress(e.target.value);
+                  setShowSuggestions(false);
                 }}
                 placeholder="Start typing an address..."
                 className="pl-10"
