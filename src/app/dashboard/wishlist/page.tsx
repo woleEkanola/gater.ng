@@ -100,7 +100,7 @@ export default function WishlistPage() {
                 className="bg-white rounded-lg border overflow-hidden group"
               >
                 <Link href={`/events/${event.slug}`}>
-                  <div className="aspect-video bg-gray-100 overflow-hidden">
+                  <div className="aspect-[2/1] bg-gray-100 overflow-hidden">
                     {event.banner ? (
                       <img
                         src={event.banner}

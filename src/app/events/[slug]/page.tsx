@@ -136,7 +136,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
 
       <main>
         {event.banner && (
-          <div className="w-full h-[200px] md:h-[300px] lg:h-[400px] relative mb-6 md:mb-8 bg-muted">
+          <div className="w-full aspect-[2/1] relative mb-6 md:mb-8 bg-muted">
             <img
               src={event.banner}
               alt={event.title}
