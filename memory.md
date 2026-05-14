@@ -113,6 +113,25 @@
 - **Dependencies:** `react-easy-crop`
 - **Status:** ✅ DONE
 
+### Interactive Map View for Event Locations (May 14)
+- **Prompt:** Need a map view for address. Organizers can turn it off and on. When it's on, entering address has to be based on map-compatible address.
+- **Plan:** Added `showMap`, `latitude`, `longitude` to Event model. Integrated OpenStreetMap + Leaflet for map display and Nominatim API for address search/autocomplete.
+- **Schema Changes:**
+  - `prisma/schema.prisma` - Added `showMap Boolean @default(false)`, `latitude Float?`, `longitude Float?` to Event
+- **APIs:**
+  - `POST /api/events` - Accepts `showMap`, `latitude`, `longitude`
+  - `PUT /api/events/[slug]` - Accepts `showMap`, `latitude`, `longitude`
+- **Components:**
+  - `src/components/map-location-picker.tsx` - Dashboard component with address search (Nominatim), map preview, zoom slider, and toggle switch
+  - `src/components/map-display.tsx` - Public page map display with marker and popup
+  - `src/components/event-map-display.tsx` - Client-side wrapper for SSR compatibility
+- **Files:**
+  - `src/app/dashboard/events/new/page.tsx` - Integrated MapLocationPicker for new events
+  - `src/app/dashboard/events/[id]/page.tsx` - Integrated MapLocationPicker for editing events
+  - `src/app/events/[slug]/page.tsx` - Displays map when `showMap` is true and coordinates exist
+- **Dependencies:** `leaflet`, `react-leaflet@4.2.1`, `@types/leaflet`
+- **Status:** ✅ DONE
+
 ### Routing & Landing Page Changes (Apr 21)
 - **Prompt:** the primary landing page should be aimed at event organizers while the current landing page should be /browse
 - **Plan:** Changed routing - root redirects to /organizer, created /browse for event discovery

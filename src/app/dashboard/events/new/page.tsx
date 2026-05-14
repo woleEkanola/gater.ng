@@ -13,7 +13,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { ImageUpload } from "@/components/ui/upload-button";
+import dynamic from "next/dynamic";
 import { Globe, MapPin, Users, X } from "lucide-react";
+
+const MapLocationPicker = dynamic(
+  () => import("@/components/map-location-picker").then((mod) => mod.MapLocationPicker),
+  { ssr: false }
+);
 
 const eventSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -56,6 +62,10 @@ export default function CreateEventPage() {
   const [isOnline, setIsOnline] = useState(false);
   const [hideAddress, setHideAddress] = useState(false);
   const [hideStreamingLink, setHideStreamingLink] = useState(false);
+  const [showMap, setShowMap] = useState(false);
+  const [mapLocation, setMapLocation] = useState("");
+  const [mapLatitude, setMapLatitude] = useState<number | null>(null);
+  const [mapLongitude, setMapLongitude] = useState<number | null>(null);
   const [tags, setTags] = useState<{ id: string; name: string; color: string }[]>([]);
   const [selectedTags, setSelectedTags] = useState<{ id: string; name: string; color: string }[]>([]);
   const [audienceTypes, setAudienceTypes] = useState<{ id: string; name: string }[]>([]);
@@ -153,6 +163,9 @@ export default function CreateEventPage() {
           ...data, 
           banner: bannerUrl,
           tagIds: selectedTags.map((t) => t.id),
+          showMap,
+          latitude: mapLatitude,
+          longitude: mapLongitude,
         }),
       });
 
@@ -273,15 +286,20 @@ export default function CreateEventPage() {
               ) : (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor="location">Location (optional)</Label>
-                    <Input
-                      id="location"
-                      {...register("location")}
-                      placeholder="Event location"
+                    <Label htmlFor="location">Location</Label>
+                    <MapLocationPicker
+                      location={mapLocation}
+                      latitude={mapLatitude}
+                      longitude={mapLongitude}
+                      showMap={showMap}
+                      onChange={({ location, latitude, longitude, showMap: sm }) => {
+                        setMapLocation(location);
+                        setMapLatitude(latitude);
+                        setMapLongitude(longitude);
+                        setShowMap(sm);
+                        setValue("location", location);
+                      }}
                     />
-                    <p className="text-sm text-muted-foreground">
-                      Leave empty to set later
-                    </p>
                   </div>
                   <div className="flex items-center gap-2 p-4 border rounded-lg bg-gray-50">
                     <input

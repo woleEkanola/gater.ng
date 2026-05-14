@@ -14,6 +14,7 @@ import { Footer } from "@/components/footer";
 import { AlertCircle, Calendar, MapPin, User, Globe, Users, Tag, HelpCircle, Image as ImageIcon } from "lucide-react";
 import { FaqAccordion } from "@/components/faq-accordion";
 import { SpeakerGrid } from "@/components/speaker-modal";
+import { EventMapDisplay } from "@/components/event-map-display";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +61,9 @@ async function getEvent(slug: string) {
       description: true,
       banner: true,
       location: true,
+      latitude: true,
+      longitude: true,
+      showMap: true,
       dateTime: true,
       isPublished: true,
       isOnline: true,
@@ -191,6 +195,17 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
                   </div>
                 </div>
               </div>
+
+              {event.showMap && event.latitude && event.longitude && !event.hideAddress && (
+                <div className="rounded-lg overflow-hidden border">
+                  <EventMapDisplay
+                    location={event.location || "Event Location"}
+                    latitude={event.latitude}
+                    longitude={event.longitude}
+                    height={250}
+                  />
+                </div>
+              )}
 
               {event.targetAudience && (
                 <div className="flex items-start gap-2 p-4 bg-rose-50 border border-rose-100 rounded-lg">

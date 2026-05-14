@@ -108,6 +108,9 @@ model Event {
   description String?
   banner      String?
   location    String?
+  latitude    Float?
+  longitude   Float?
+  showMap     Boolean   @default(false)
   dateTime    DateTime
   isPublished Boolean   @default(false)
   isFeatured  Boolean   @default(false)

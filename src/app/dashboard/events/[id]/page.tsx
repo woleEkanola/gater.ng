@@ -18,6 +18,12 @@ import { BannerCropUpload } from "@/components/ui/banner-crop-upload";
 import { SpeakerImageUpload } from "@/components/ui/speaker-image-upload";
 import { GalleryUpload } from "@/components/ui/gallery-upload";
 import { TicketImageUpload } from "@/components/ui/ticket-image-upload";
+import dynamic from "next/dynamic";
+
+const MapLocationPicker = dynamic(
+  () => import("@/components/map-location-picker").then((mod) => mod.MapLocationPicker),
+  { ssr: false }
+);
 import { Download, Users, DollarSign, Ticket, Link as LinkIcon, Image, Pencil, Globe, Tag, Trash2, Plus, Percent, HelpCircle, Eye, EyeOff } from "lucide-react";
 
 const ticketTypeSchema = z.object({
@@ -46,6 +52,9 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
   const [editedTitle, setEditedTitle] = useState("");
   const [editedDescription, setEditedDescription] = useState("");
   const [editedLocation, setEditedLocation] = useState("");
+  const [editedShowMap, setEditedShowMap] = useState(false);
+  const [editedLatitude, setEditedLatitude] = useState<number | null>(null);
+  const [editedLongitude, setEditedLongitude] = useState<number | null>(null);
   const [editedDateTime, setEditedDateTime] = useState("");
   const [editedIsOnline, setEditedIsOnline] = useState(false);
   const [editedStreamingLink, setEditedStreamingLink] = useState("");
@@ -416,6 +425,9 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
     setEditedTitle(event.title || "");
     setEditedDescription(event.description || "");
     setEditedLocation(event.location || "");
+    setEditedShowMap(event.showMap || false);
+    setEditedLatitude(event.latitude ?? null);
+    setEditedLongitude(event.longitude ?? null);
     setEditedDateTime(event.dateTime ? new Date(event.dateTime).toISOString().slice(0, 16) : "");
     setEditedIsOnline(event.isOnline || false);
     setEditedStreamingLink(event.streamingLink || "");
@@ -445,6 +457,9 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
           location: editedIsOnline ? "Online" : editedLocation,
           dateTime: editedDateTime ? new Date(editedDateTime).toISOString() : null,
           isOnline: editedIsOnline,
+          showMap: editedShowMap,
+          latitude: editedLatitude,
+          longitude: editedLongitude,
           streamingLink: editedIsOnline ? editedStreamingLink : null,
           accessInstructions: editedIsOnline ? editedAccessInstructions : null,
           category: editedCategory,
@@ -471,6 +486,9 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
         location: editedIsOnline ? "Online" : editedLocation,
         dateTime: result.dateTime,
         isOnline: editedIsOnline,
+        showMap: editedShowMap,
+        latitude: editedLatitude,
+        longitude: editedLongitude,
         streamingLink: editedStreamingLink,
         accessInstructions: editedAccessInstructions,
         category: editedCategory,
@@ -720,10 +738,17 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
               ) : (
                 <div>
                   <Label>Location</Label>
-                  <Input
-                    value={editedLocation}
-                    onChange={(e) => setEditedLocation(e.target.value)}
-                    placeholder="Event location"
+                  <MapLocationPicker
+                    location={editedLocation}
+                    latitude={editedLatitude}
+                    longitude={editedLongitude}
+                    showMap={editedShowMap}
+                    onChange={({ location, latitude, longitude, showMap }) => {
+                      setEditedLocation(location);
+                      setEditedLatitude(latitude);
+                      setEditedLongitude(longitude);
+                      setEditedShowMap(showMap);
+                    }}
                   />
                 </div>
               )}
