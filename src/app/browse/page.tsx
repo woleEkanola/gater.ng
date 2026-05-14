@@ -201,7 +201,7 @@ export default async function BrowsePage() {
                   href={`/events/${event.slug}`}
                   className="group bg-white rounded-lg border overflow-hidden hover:shadow-lg transition-shadow"
                 >
-                  <div className="aspect-[2/1] bg-gray-100 overflow-hidden">
+                  <div className="aspect-[5/2] bg-gray-100 overflow-hidden">
                     {event.banner ? (
                       <img
                         src={event.banner}

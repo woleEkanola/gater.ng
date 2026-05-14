@@ -867,7 +867,7 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
                 onChange={handleBannerChange}
               />
               <p className="text-sm text-muted-foreground mt-2">
-                Recommended size: 1200x600px (2:1 ratio). Images are automatically cropped to fit.
+                Recommended size: 1000x400px (5:2 ratio). Images are automatically cropped to fit.
               </p>
             </CardContent>
           </Card>

@@ -231,7 +231,7 @@ export default function CreateEventPage() {
                 <Label>Event Banner</Label>
                 <ImageUpload value={bannerUrl} onChange={handleBannerUpload} />
                 <p className="text-sm text-muted-foreground">
-                  Recommended size: 1200x600px
+                  Recommended size: 1000x400px
                 </p>
               </div>
 
