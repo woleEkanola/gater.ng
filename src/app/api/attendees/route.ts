@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const eventId = searchParams.get("eventId");
     const format = searchParams.get("format") || "json";
+    const discountCodeFilter = searchParams.get("discountCode");
 
     if (!eventId) {
       return NextResponse.json({ error: "Event ID required" }, { status: 400 });
@@ -35,20 +36,30 @@ export async function GET(request: NextRequest) {
     }
 
     const tickets = await prisma.ticket.findMany({
-      where: { order: { eventId: eventId, status: "PAID" } },
+      where: {
+        order: {
+          eventId: eventId,
+          status: "PAID",
+          ...(discountCodeFilter && discountCodeFilter !== "ALL"
+            ? { discountCode: discountCodeFilter }
+            : {}),
+        },
+      },
       include: {
         ticketType: { select: { name: true } },
         owner: { select: { email: true, name: true } },
+        order: { select: { discountCode: true } },
       },
     });
 
     if (format === "csv") {
-      const headers = ["Ticket ID", "Ticket Type", "Email", "Name", "Status", "Used At"];
+      const headers = ["Ticket ID", "Ticket Type", "Email", "Name", "Promo Code", "Status", "Used At"];
       const rows = tickets.map((t) => [
         t.ticketId,
         t.ticketType.name,
         t.owner?.email || "N/A",
         t.owner?.name || "N/A",
+        t.order?.discountCode || "N/A",
         t.isUsed ? "Used" : "Not Used",
         t.usedAt?.toISOString() || "",
       ]);

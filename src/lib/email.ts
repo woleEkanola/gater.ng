@@ -16,15 +16,17 @@ interface TicketEmailData {
   qrCode: string;
   orderId: string;
   amount: string;
+  discountCode?: string;
 }
 
 function getQrCodeUrl(ticketId: string): string {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "https://www.hitix.online";
   const qrData = encodeURIComponent(JSON.stringify({ ticketId }));
-  return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${qrData}`;
+  return `${baseUrl}/api/qr?data=${qrData}`;
 }
 
 export async function sendTicketEmail(data: TicketEmailData) {
-  const { email, name, eventTitle, eventDate, eventLocation, eventBanner, organizerName, organizerImage, ticketId, ticketType, orderId, amount } = data;
+  const { email, name, eventTitle, eventDate, eventLocation, eventBanner, organizerName, organizerImage, ticketId, ticketType, orderId, amount, discountCode } = data;
 
   const qrCodeUrl = getQrCodeUrl(ticketId);
   const headerImage = eventBanner || "https://www.hitix.online/og-image.jpg";
@@ -63,6 +65,7 @@ export async function sendTicketEmail(data: TicketEmailData) {
         <p style="margin: 8px 0; color: #374151;"><strong>Ticket Type:</strong> ${ticketType}</p>
         <p style="margin: 8px 0; color: #374151;"><strong>Order ID:</strong> ${orderId}</p>
         <p style="margin: 8px 0; color: #374151;"><strong>Amount Paid:</strong> ₦${amount}</p>
+        ${discountCode ? `<p style="margin: 8px 0; color: #374151;"><strong>Promo Code Used:</strong> ${discountCode}</p>` : ''}
       </div>
 
       <div style="text-align: center; margin: 30px 0;">

@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     console.log("[API /orders] POST - querying event by id:", eventId);
     const event = await prisma.event.findUnique({
       where: { id: eventId },
-      include: { ticketTypes: true },
+      include: { ticketTypes: true, organizer: { select: { name: true, image: true } } },
     });
 
     if (!event) {
@@ -154,14 +154,26 @@ export async function POST(request: NextRequest) {
                 weekday: "long", year: "numeric", month: "long", day: "numeric",
               }),
               eventLocation: event.location || "TBD",
+              eventBanner: event.banner,
+              organizerName: event.organizer?.name,
+              organizerImage: event.organizer?.image,
               ticketId: ticket.ticketId,
               ticketType: ticketType?.name || "General",
               qrCode: ticket.qrCode,
               orderId: order.id,
               amount: "0",
+              discountCode: order.discountCode || undefined,
             });
           }
         }
+      }
+
+      // Increment discount code usage
+      if (order.discountCode) {
+        await prisma.discountCode.updateMany({
+          where: { code: order.discountCode, eventId: event.id },
+          data: { usesCount: { increment: 1 } },
+        });
       }
     }
 

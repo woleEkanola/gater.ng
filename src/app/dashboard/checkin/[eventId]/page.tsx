@@ -179,6 +179,11 @@ export default function CheckinPage({ params }: { params: { eventId: string } })
                           <p>Ticket: {result.ticket.ticketId}</p>
                           <p>Type: {result.ticket.ticketType}</p>
                           <p>Attendee: {result.ticket.owner}</p>
+                          {result.discountCode && (
+                            <p className="font-medium mt-1 text-blue-700">
+                              Promo Code: {result.discountCode}
+                            </p>
+                          )}
                           {result.groupSize > 1 && (
                             <p className="font-medium mt-1">
                               {result.checkedInCount} of {result.groupSize} checked in

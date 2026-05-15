@@ -102,6 +102,7 @@ export async function POST(request: NextRequest) {
       status: "VALID",
       checkedInCount: newCheckedInCount,
       groupSize: ticket.groupSize,
+      discountCode: ticket.order?.discountCode || null,
       ticket: {
         ticketId: ticket.ticketId,
         ticketType: ticket.ticketType.name,

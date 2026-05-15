@@ -68,6 +68,7 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
   const [editTicketModalOpen, setEditTicketModalOpen] = useState(false);
   const [savingTicketType, setSavingTicketType] = useState(false);
   const [discountCodes, setDiscountCodes] = useState<any[]>([]);
+  const [selectedPromoCode, setSelectedPromoCode] = useState<string>("ALL");
   const [showDiscountForm, setShowDiscountForm] = useState(false);
   const [savingDiscount, setSavingDiscount] = useState(false);
   const [newDiscountCode, setNewDiscountCode] = useState("");
@@ -565,6 +566,19 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
     }
     fetchData();
   }, [eventId]);
+
+  useEffect(() => {
+    async function fetchFilteredAttendees() {
+      if (!eventId) return;
+      const url = `/api/attendees?eventId=${eventId}${selectedPromoCode !== "ALL" ? `&discountCode=${selectedPromoCode}` : ""}`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        setAttendees(data);
+      }
+    }
+    fetchFilteredAttendees();
+  }, [eventId, selectedPromoCode]);
 
   const onSubmitTicketType = async (data: TicketTypeFormData) => {
     setIsLoading(true);
@@ -1616,14 +1630,28 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
           <Card className="lg:col-span-2">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Attendees ({attendees.length})</CardTitle>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => window.open(`/api/attendees?eventId=${eventId}&format=csv`, "_blank")}
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Export CSV
-              </Button>
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedPromoCode}
+                  onChange={(e) => setSelectedPromoCode(e.target.value)}
+                  className="border rounded-md px-3 py-2 text-sm"
+                >
+                  <option value="ALL">All Promo Codes</option>
+                  {discountCodes.map((code) => (
+                    <option key={code.id} value={code.code}>
+                      {code.code}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open(`/api/attendees?eventId=${eventId}&format=csv${selectedPromoCode !== "ALL" ? `&discountCode=${selectedPromoCode}` : ""}`, "_blank")}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Export CSV
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {loadingData ? (
@@ -1638,6 +1666,7 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
                         <th className="text-left py-2">Ticket ID</th>
                         <th className="text-left py-2">Type</th>
                         <th className="text-left py-2">Email</th>
+                        <th className="text-left py-2">Promo Code</th>
                         <th className="text-left py-2">Group</th>
                         <th className="text-left py-2">Status</th>
                       </tr>
@@ -1648,6 +1677,15 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
                           <td className="py-2 font-mono">{ticket.ticketId}</td>
                           <td className="py-2">{ticket.ticketType?.name}</td>
                           <td className="py-2">{ticket.owner?.email || "Guest"}</td>
+                          <td className="py-2">
+                            {ticket.order?.discountCode ? (
+                              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                                {ticket.order.discountCode}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </td>
                           <td className="py-2">
                             {ticket.groupSize > 1 ? (
                               <span className="text-sm">
