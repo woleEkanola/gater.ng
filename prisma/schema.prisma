@@ -158,6 +158,7 @@ model TicketType {
   price      Int
   quantity   Int
   soldCount  Int       @default(0)
+  groupSize  Int       @default(1)
   image      String?
   salesStart DateTime?
   salesEnd   DateTime?
@@ -180,21 +181,23 @@ model Faq {
 }
 
 model Ticket {
-  id           String     @id @default(cuid())
-  ticketId     String     @unique
-  ticketTypeId String
-  ticketType   TicketType @relation(fields: [ticketTypeId], references: [id])
-  ownerId      String?
-  owner        User?      @relation(fields: [ownerId], references: [id])
-  orderId      String?
-  order        Order?     @relation(fields: [orderId], references: [id])
-  isUsed       Boolean    @default(false)
-  usedAt       DateTime?
-  usedBy       String?
-  qrCode       String?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  checkIn      CheckIn?
+  id            String     @id @default(cuid())
+  ticketId      String     @unique
+  ticketTypeId  String
+  ticketType    TicketType @relation(fields: [ticketTypeId], references: [id])
+  ownerId       String?
+  owner         User?      @relation(fields: [ownerId], references: [id])
+  orderId       String?
+  order         Order?     @relation(fields: [orderId], references: [id])
+  groupSize     Int        @default(1)
+  checkedInCount Int       @default(0)
+  isUsed        Boolean    @default(false)
+  usedAt        DateTime?
+  usedBy        String?
+  qrCode        String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  checkIns      CheckIn[]
 }
 
 model Order {
@@ -219,7 +222,7 @@ model Order {
 
 model CheckIn {
   id        String   @id @default(cuid())
-  ticketId  String   @unique
+  ticketId  String
   ticket    Ticket   @relation(fields: [ticketId], references: [id])
   checkedBy String
   checker   User     @relation(fields: [checkedBy], references: [id])

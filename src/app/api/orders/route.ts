@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { generateQRCode, generateTicketId } from "@/lib/qr";
+import { sendTicketEmail } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
   try {
@@ -108,22 +109,58 @@ export async function POST(request: NextRequest) {
         where: { id: order.id },
         data: { status: "PAID" },
       });
-      
+
+      const tickets: { id: string; ticketId: string; qrCode: string }[] = [];
+
       for (const item of orderItems) {
+        const ticketType = event.ticketTypes.find((tt) => tt.id === item.ticketTypeId);
+        if (!ticketType) continue;
+
         for (let i = 0; i < item.quantity; i++) {
           const ticketId = generateTicketId();
-          await prisma.ticket.create({
+          const qrData = JSON.stringify({ ticketId, orderId: order.id, eventId });
+          const qrCode = await generateQRCode(qrData);
+
+          const ticket = await prisma.ticket.create({
             data: {
               ticketId,
               orderId: order.id,
               ticketTypeId: item.ticketTypeId,
+              groupSize: ticketType.groupSize,
+              qrCode,
             },
           });
-          
-          await prisma.ticketType.update({
-            where: { id: item.ticketTypeId },
-            data: { soldCount: { increment: item.quantity } },
-          });
+
+          tickets.push({ id: ticket.id, ticketId: ticket.ticketId, qrCode });
+        }
+
+        await prisma.ticketType.update({
+          where: { id: item.ticketTypeId },
+          data: { soldCount: { increment: item.quantity } },
+        });
+      }
+
+      // Send ticket emails for free tickets
+      if (email && tickets.length > 0) {
+        for (const item of orderItems) {
+          const ticketType = event.ticketTypes.find((tt) => tt.id === item.ticketTypeId);
+          const itemTickets = tickets.splice(0, item.quantity);
+          for (const ticket of itemTickets) {
+            await sendTicketEmail({
+              email,
+              name: name || "Customer",
+              eventTitle: event.title,
+              eventDate: new Date(event.dateTime).toLocaleDateString("en-US", {
+                weekday: "long", year: "numeric", month: "long", day: "numeric",
+              }),
+              eventLocation: event.location || "TBD",
+              ticketId: ticket.ticketId,
+              ticketType: ticketType?.name || "General",
+              qrCode: ticket.qrCode,
+              orderId: order.id,
+              amount: "0",
+            });
+          }
         }
       }
     }

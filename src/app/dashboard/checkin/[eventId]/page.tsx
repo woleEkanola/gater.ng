@@ -13,9 +13,10 @@ export default function CheckinPage({ params }: { params: { eventId: string } })
   const router = useRouter();
   const { toast } = useToast();
   const [ticketId, setTicketId] = useState("");
+  const [checkInCount, setCheckInCount] = useState(1);
   const [result, setResult] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [stats, setStats] = useState({ totalTickets: 0, checkedIn: 0 });
+  const [stats, setStats] = useState({ totalTickets: 0, totalAdmissions: 0, checkedIn: 0 });
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -28,7 +29,11 @@ export default function CheckinPage({ params }: { params: { eventId: string } })
       const res = await fetch(`/api/checkin?eventId=${params.eventId}`);
       const data = await res.json();
       if (res.ok) {
-        setStats({ totalTickets: data.totalTickets, checkedIn: data.checkedIn });
+        setStats({ 
+          totalTickets: data.totalTickets, 
+          totalAdmissions: data.totalAdmissions || 0,
+          checkedIn: data.checkedIn 
+        });
       }
     } catch (error) {
       console.error("Failed to fetch stats:", error);
@@ -48,7 +53,7 @@ export default function CheckinPage({ params }: { params: { eventId: string } })
       const res = await fetch("/api/checkin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ticketId: ticketId.trim(), eventId: params.eventId }),
+        body: JSON.stringify({ ticketId: ticketId.trim(), eventId: params.eventId, count: checkInCount }),
       });
 
       const data = await res.json();
@@ -99,11 +104,17 @@ export default function CheckinPage({ params }: { params: { eventId: string } })
           <p className="text-muted-foreground">Scan tickets or enter ticket ID manually</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 mb-8">
+        <div className="grid grid-cols-3 gap-4 mb-8">
           <Card>
             <CardContent className="pt-6 text-center">
               <p className="text-sm text-muted-foreground">Total Tickets</p>
               <p className="text-3xl font-bold">{stats.totalTickets}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6 text-center">
+              <p className="text-sm text-muted-foreground">Total Admissions</p>
+              <p className="text-3xl font-bold">{stats.totalAdmissions}</p>
             </CardContent>
           </Card>
           <Card>
@@ -131,11 +142,22 @@ export default function CheckinPage({ params }: { params: { eventId: string } })
                 placeholder="GAT-XXXXXX"
                 className="text-lg font-mono uppercase"
               />
+              <Input
+                type="number"
+                min="1"
+                value={checkInCount}
+                onChange={(e) => setCheckInCount(Number(e.target.value))}
+                className="w-24"
+                placeholder="Count"
+              />
               <Button onClick={handleCheckIn} disabled={isLoading}>
                 <Search className="w-4 h-4 mr-2" />
                 Check In
               </Button>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Enter number of people to check in (for group tickets)
+            </p>
           </CardContent>
         </Card>
 
@@ -157,6 +179,11 @@ export default function CheckinPage({ params }: { params: { eventId: string } })
                           <p>Ticket: {result.ticket.ticketId}</p>
                           <p>Type: {result.ticket.ticketType}</p>
                           <p>Attendee: {result.ticket.owner}</p>
+                          {result.groupSize > 1 && (
+                            <p className="font-medium mt-1">
+                              {result.checkedInCount} of {result.groupSize} checked in
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>
@@ -166,8 +193,15 @@ export default function CheckinPage({ params }: { params: { eventId: string } })
                   <>
                     <AlertCircle className="w-12 h-12 text-yellow-600" />
                     <div>
-                      <p className="font-semibold text-yellow-800">Already Used</p>
+                      <p className="font-semibold text-yellow-800">
+                        {result.status === "ALREADY_USED" ? "Fully Used" : "Partial Check-in"}
+                      </p>
                       <p className="text-sm text-yellow-700 mt-1">{result.message}</p>
+                      {result.groupSize > 1 && (
+                        <p className="text-sm text-yellow-700 mt-1">
+                          {result.checkedInCount || 0} of {result.groupSize} checked in
+                        </p>
+                      )}
                     </div>
                   </>
                 )}

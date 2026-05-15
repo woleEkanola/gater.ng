@@ -30,6 +30,7 @@ const ticketTypeSchema = z.object({
   name: z.string().min(1, "Ticket name is required"),
   price: z.number().min(0, "Price must be positive"),
   quantity: z.number().int().min(1, "Quantity must be at least 1"),
+  groupSize: z.number().int().min(1, "Group size must be at least 1").default(1),
   salesStart: z.string().optional(),
   salesEnd: z.string().optional(),
 });
@@ -63,6 +64,9 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
   const [editedTargetAudience, setEditedTargetAudience] = useState("");
   const [editedSpeakerLabel, setEditedSpeakerLabel] = useState("");
   const [ticketImage, setTicketImage] = useState("");
+  const [editingTicketType, setEditingTicketType] = useState<any>(null);
+  const [editTicketModalOpen, setEditTicketModalOpen] = useState(false);
+  const [savingTicketType, setSavingTicketType] = useState(false);
   const [discountCodes, setDiscountCodes] = useState<any[]>([]);
   const [showDiscountForm, setShowDiscountForm] = useState(false);
   const [savingDiscount, setSavingDiscount] = useState(false);
@@ -589,22 +593,40 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
     }
   };
 
-  const updateTicketPrice = async (ticketTypeId: string, newPrice: number) => {
+  const updateTicketType = async (data: any) => {
+    setSavingTicketType(true);
     try {
       const res = await fetch("/api/ticket-types", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: ticketTypeId, price: newPrice }),
+        body: JSON.stringify(data),
       });
+      const result = await res.json();
       if (res.ok) {
         setTicketTypes(ticketTypes.map(tt => 
-          tt.id === ticketTypeId ? { ...tt, price: newPrice } : tt
+          tt.id === data.id ? result : tt
         ));
-        toast({ title: "Success", description: "Price updated" });
+        setEditTicketModalOpen(false);
+        setEditingTicketType(null);
+        toast({ title: "Success", description: "Ticket type updated" });
+      } else {
+        toast({ title: "Error", description: result.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Error", description: "Failed to update price", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to update ticket type", variant: "destructive" });
+    } finally {
+      setSavingTicketType(false);
     }
+  };
+
+  const openEditTicketModal = (tt: any) => {
+    setEditingTicketType({
+      ...tt,
+      price: tt.price / 100,
+      salesStart: tt.salesStart ? new Date(tt.salesStart).toISOString().slice(0, 16) : "",
+      salesEnd: tt.salesEnd ? new Date(tt.salesEnd).toISOString().slice(0, 16) : "",
+    });
+    setEditTicketModalOpen(true);
   };
 
   const onLogSale = async (data: SaleFormData) => {
@@ -1351,6 +1373,22 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
                 </div>
 
                 <div className="space-y-2">
+                  <Label>Group Size</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    {...register("groupSize", { valueAsNumber: true })}
+                    placeholder="1"
+                  />
+                  {errors.groupSize && (
+                    <p className="text-sm text-destructive">{errors.groupSize.message}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Number of people this ticket admits (e.g., 1 for individual, 5 for a table)
+                  </p>
+                </div>
+
+                <div className="space-y-2">
                   <Label>Ticket Image (Optional)</Label>
                   <TicketImageUpload value={ticketImage} onChange={setTicketImage} />
                   <p className="text-xs text-muted-foreground">Optional image to represent this ticket type</p>
@@ -1384,30 +1422,135 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
                           <p className="font-medium">{tt.name}</p>
                           <p className="text-sm text-muted-foreground">
                             {formatCurrency(tt.price)} • {tt.quantity} available • {tt.soldCount} sold
+                            {tt.groupSize > 1 && ` • Group of ${tt.groupSize}`}
                           </p>
                         </div>
                       </div>
-                      {tt.soldCount === 0 && (
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          onClick={() => {
-                            const currentPrice = (tt.price / 100).toString();
-                            const newPrice = prompt("Enter new price (in Naira):", currentPrice);
-                            if (newPrice && !isNaN(Number(newPrice))) {
-                              updateTicketPrice(tt.id, Number(newPrice) * 100);
-                            }
-                          }}
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                      )}
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => openEditTicketModal(tt)}
+                        title="Edit ticket type"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
                     </div>
                   ))}
                 </div>
               )}
             </CardContent>
           </Card>
+
+          {editTicketModalOpen && editingTicketType && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+                <div className="p-6 space-y-4">
+                  <h2 className="text-xl font-bold">Edit Ticket Type</h2>
+                  
+                  <div className="space-y-2">
+                    <Label>Name</Label>
+                    <Input
+                      value={editingTicketType.name}
+                      onChange={(e) => setEditingTicketType({ ...editingTicketType, name: e.target.value })}
+                      placeholder="Ticket name"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Price (₦)</Label>
+                    <Input
+                      type="number"
+                      step="100"
+                      value={editingTicketType.price}
+                      onChange={(e) => setEditingTicketType({ ...editingTicketType, price: Number(e.target.value) })}
+                      placeholder="0"
+                      disabled={editingTicketType.soldCount > 0}
+                    />
+                    {editingTicketType.soldCount > 0 && (
+                      <p className="text-xs text-muted-foreground">Price locked — tickets already sold</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Quantity Available</Label>
+                    <Input
+                      type="number"
+                      value={editingTicketType.quantity}
+                      onChange={(e) => setEditingTicketType({ ...editingTicketType, quantity: Number(e.target.value) })}
+                      placeholder="100"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Group Size</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={editingTicketType.groupSize}
+                      onChange={(e) => setEditingTicketType({ ...editingTicketType, groupSize: Number(e.target.value) })}
+                      placeholder="1"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Number of people this ticket admits
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Sales Start</Label>
+                    <Input
+                      type="datetime-local"
+                      value={editingTicketType.salesStart}
+                      onChange={(e) => setEditingTicketType({ ...editingTicketType, salesStart: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Sales End</Label>
+                    <Input
+                      type="datetime-local"
+                      value={editingTicketType.salesEnd}
+                      onChange={(e) => setEditingTicketType({ ...editingTicketType, salesEnd: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Ticket Image</Label>
+                    <TicketImageUpload 
+                      value={editingTicketType.image || ""} 
+                      onChange={(url) => setEditingTicketType({ ...editingTicketType, image: url })} 
+                    />
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <Button 
+                      onClick={() => updateTicketType({
+                        id: editingTicketType.id,
+                        name: editingTicketType.name,
+                        price: editingTicketType.price,
+                        quantity: editingTicketType.quantity,
+                        groupSize: editingTicketType.groupSize,
+                        salesStart: editingTicketType.salesStart,
+                        salesEnd: editingTicketType.salesEnd,
+                        image: editingTicketType.image,
+                      })} 
+                      disabled={savingTicketType}
+                    >
+                      {savingTicketType ? "Saving..." : "Save Changes"}
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        setEditTicketModalOpen(false);
+                        setEditingTicketType(null);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <Card>
             <CardHeader>
@@ -1495,6 +1638,7 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
                         <th className="text-left py-2">Ticket ID</th>
                         <th className="text-left py-2">Type</th>
                         <th className="text-left py-2">Email</th>
+                        <th className="text-left py-2">Group</th>
                         <th className="text-left py-2">Status</th>
                       </tr>
                     </thead>
@@ -1505,8 +1649,19 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
                           <td className="py-2">{ticket.ticketType?.name}</td>
                           <td className="py-2">{ticket.owner?.email || "Guest"}</td>
                           <td className="py-2">
+                            {ticket.groupSize > 1 ? (
+                              <span className="text-sm">
+                                {ticket.checkedInCount || 0}/{ticket.groupSize} checked in
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </td>
+                          <td className="py-2">
                             {ticket.isUsed ? (
                               <span className="text-green-600">Used</span>
+                            ) : ticket.checkedInCount > 0 ? (
+                              <span className="text-yellow-600">Partial</span>
                             ) : (
                               <span className="text-muted-foreground">Not Used</span>
                             )}

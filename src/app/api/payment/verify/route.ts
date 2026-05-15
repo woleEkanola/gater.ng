@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
         const qrCode = await generateQRCode(qrData);
 
         const ticket = await prisma.ticket.create({
-          data: { ticketId, ticketTypeId: td.ticketTypeId, ownerId: buyerId || null, orderId, qrCode },
+          data: { ticketId, ticketTypeId: td.ticketTypeId, ownerId: buyerId || null, orderId, groupSize: ticketType.groupSize, qrCode },
         });
 
         tickets.push({ id: ticket.id, ticketId: ticket.ticketId, qrCode });

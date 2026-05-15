@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { ticketId, eventId } = body;
+    const { ticketId, eventId, count } = body;
 
     if (!ticketId) {
       return NextResponse.json({ error: "Ticket ID is required" }, { status: 400 });
@@ -47,12 +47,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Ticket not found", status: "INVALID" }, { status: 404 });
     }
 
-    if (ticket.isUsed) {
+    const checkInCount = count ? parseInt(count) : 1;
+    const remaining = ticket.groupSize - ticket.checkedInCount;
+
+    if (remaining <= 0) {
       return NextResponse.json({
-        error: "Ticket already used",
+        error: "Ticket fully checked in",
         status: "ALREADY_USED",
-        usedAt: ticket.usedAt,
-        usedBy: ticket.usedBy,
+        checkedInCount: ticket.checkedInCount,
+        groupSize: ticket.groupSize,
+      }, { status: 400 });
+    }
+
+    if (checkInCount > remaining) {
+      return NextResponse.json({
+        error: `Only ${remaining} admission${remaining === 1 ? "" : "s"} remaining on this ticket`,
+        status: "PARTIAL",
+        remaining,
+        groupSize: ticket.groupSize,
+        checkedInCount: ticket.checkedInCount,
       }, { status: 400 });
     }
 
@@ -63,25 +76,32 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    const updatedTicket = await prisma.ticket.update({
+    const newCheckedInCount = ticket.checkedInCount + checkInCount;
+    const isFullyUsed = newCheckedInCount >= ticket.groupSize;
+
+    await prisma.ticket.update({
       where: { id: ticket.id },
       data: {
-        isUsed: true,
-        usedAt: new Date(),
-        usedBy: user.id,
+        checkedInCount: newCheckedInCount,
+        isUsed: isFullyUsed,
+        ...(isFullyUsed && { usedAt: new Date(), usedBy: user.id }),
       },
     });
 
-    await prisma.checkIn.create({
-      data: {
-        ticketId: ticket.id,
-        checkedBy: user.id,
-      },
-    });
+    for (let i = 0; i < checkInCount; i++) {
+      await prisma.checkIn.create({
+        data: {
+          ticketId: ticket.id,
+          checkedBy: user.id,
+        },
+      });
+    }
 
     return NextResponse.json({
       message: "Check-in successful",
       status: "VALID",
+      checkedInCount: newCheckedInCount,
+      groupSize: ticket.groupSize,
       ticket: {
         ticketId: ticket.ticketId,
         ticketType: ticket.ticketType.name,
@@ -149,8 +169,17 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    const totalAdmissions = await prisma.ticket.aggregate({
+      where: {
+        ticketType: { eventId },
+        order: { status: "PAID" },
+      },
+      _sum: { groupSize: true },
+    });
+
     return NextResponse.json({
       totalTickets,
+      totalAdmissions: totalAdmissions._sum.groupSize || 0,
       checkedIn: checkIns.length,
       checkIns,
     });
