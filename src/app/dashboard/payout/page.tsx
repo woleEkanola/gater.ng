@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { BankSelect } from "@/components/ui/bank-select";
-import { Building2, ChevronLeft } from "lucide-react";
+import { Building2, ChevronLeft, MessageCircle } from "lucide-react";
 
 const payoutSchema = z.object({
   payoutBankCode: z.string().min(3, "Bank code required"),
@@ -160,6 +160,27 @@ export default function PayoutSettingsPage() {
             {saving ? "Saving..." : "Save Payout Settings"}
           </Button>
         </form>
+
+        <div className="mt-8 pt-8 border-t">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MessageCircle className="w-5 h-5" />
+                WhatsApp Integration
+              </CardTitle>
+              <CardDescription>
+                Send ticket confirmations to buyers via WhatsApp
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link href="/dashboard/whatsapp">
+                <Button variant="outline" className="w-full">
+                  Manage WhatsApp Settings
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

@@ -51,6 +51,10 @@ model User {
   paystackSettlementBank String?
   transactionFeePercent   Float?   @default(5.0)
   
+  whatsappInstanceName   String?
+  whatsappConnected      Boolean   @default(false)
+  whatsappPhone          String?
+  
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   accounts      Account[]
@@ -163,9 +167,10 @@ model TicketType {
   salesStart DateTime?
   salesEnd   DateTime?
   eventId    String
-  event      Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  tickets    Ticket[]
-  createdAt  DateTime  @default(now())
+  event         Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  tickets       Ticket[]
+  discountCodes DiscountCode[]
+  createdAt     DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 }
 
@@ -239,6 +244,8 @@ model DiscountCode {
   validUntil    DateTime?
   eventId       String
   event         Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  ticketTypeId  String?
+  ticketType    TicketType? @relation(fields: [ticketTypeId], references: [id])
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

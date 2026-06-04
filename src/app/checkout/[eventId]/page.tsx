@@ -104,7 +104,8 @@ export default function CheckoutPage({ params, searchParams }: { params: Promise
     if (!promoCode.trim()) return;
     setPromoLoading(true);
     try {
-      const res = await fetch(`/api/discount-codes/validate?eventId=${event?.id}&code=${encodeURIComponent(promoCode.trim().toUpperCase())}`);
+      const ticketTypeIds = Object.keys(cart).join(",");
+      const res = await fetch(`/api/discount-codes/validate?eventId=${event?.id}&code=${encodeURIComponent(promoCode.trim().toUpperCase())}&ticketTypeIds=${ticketTypeIds}`);
       const data = await res.json();
       
       if (!res.ok || data.error) {

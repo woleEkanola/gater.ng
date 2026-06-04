@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { eventId, code, discountType, discountValue, maxUses, validUntil } = body;
+    const { eventId, code, discountType, discountValue, maxUses, validUntil, ticketTypeId } = body;
 
     if (!eventId || !code || !discountType || !discountValue) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -55,6 +55,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    // If ticketTypeId is provided, verify it belongs to the event
+    if (ticketTypeId) {
+      const ticketType = await prisma.ticketType.findUnique({
+        where: { id: ticketTypeId },
+      });
+      if (!ticketType || ticketType.eventId !== eventId) {
+        return NextResponse.json({ error: "Ticket type not found for this event" }, { status: 400 });
+      }
+    }
+
     // Check for duplicate code
     const existing = await prisma.discountCode.findUnique({
       where: { code_eventId: { code: code.toUpperCase(), eventId } },
@@ -72,6 +82,7 @@ export async function POST(request: NextRequest) {
         maxUses,
         validUntil: validUntil ? new Date(validUntil) : null,
         eventId,
+        ticketTypeId: ticketTypeId || null,
       },
     });
 
@@ -79,6 +90,77 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Error creating discount code:", error);
     return NextResponse.json({ error: "Failed to create code" }, { status: 500 });
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { id, code, discountType, discountValue, maxUses, validUntil, ticketTypeId } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: "Code ID required" }, { status: 400 });
+    }
+
+    const existing = await prisma.discountCode.findUnique({
+      where: { id },
+      include: { event: true },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: "Code not found" }, { status: 404 });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email! },
+    });
+
+    if (!user || existing.event.organizerId !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // If code is being changed, check for duplicates
+    if (code && code.toUpperCase() !== existing.code) {
+      const duplicate = await prisma.discountCode.findUnique({
+        where: { code_eventId: { code: code.toUpperCase(), eventId: existing.eventId } },
+      });
+      if (duplicate) {
+        return NextResponse.json({ error: "Code already exists" }, { status: 400 });
+      }
+    }
+
+    // If ticketTypeId is being set, verify it belongs to the event
+    if (ticketTypeId) {
+      const ticketType = await prisma.ticketType.findUnique({
+        where: { id: ticketTypeId },
+      });
+      if (!ticketType || ticketType.eventId !== existing.eventId) {
+        return NextResponse.json({ error: "Ticket type not found for this event" }, { status: 400 });
+      }
+    }
+
+    const updateData: any = {};
+    if (code !== undefined) updateData.code = code.toUpperCase();
+    if (discountType !== undefined) updateData.discountType = discountType;
+    if (discountValue !== undefined) updateData.discountValue = discountValue;
+    if (maxUses !== undefined) updateData.maxUses = maxUses;
+    if (validUntil !== undefined) updateData.validUntil = validUntil ? new Date(validUntil) : null;
+    if (ticketTypeId !== undefined) updateData.ticketTypeId = ticketTypeId || null;
+
+    const updated = await prisma.discountCode.update({
+      where: { id },
+      data: updateData,
+    });
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error("Error updating discount code:", error);
+    return NextResponse.json({ error: "Failed to update code" }, { status: 500 });
   }
 }
 

@@ -6,7 +6,7 @@ import prisma from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { LogoutButton } from "@/components/logout-button";
 import { DashboardClient } from "./dashboard-client";
-import { AlertCircle, Ticket, ArrowLeft, ArrowRight, Calendar, Plus, Sparkles } from "lucide-react";
+import { AlertCircle, Ticket, ArrowLeft, ArrowRight, Calendar, Plus, Sparkles, MessageCircle } from "lucide-react";
 import { formatDate, formatCurrency } from "@/lib/utils";
 
 async function getOrganizerData(userId: string) {
@@ -275,6 +275,50 @@ export default async function DashboardPage({
                 className="inline-block mt-2 text-sm text-amber-700 hover:text-amber-900 underline"
               >
                 Complete payout settings now
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {user.whatsappConnected ? (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start gap-3">
+            <MessageCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-medium text-green-800">WhatsApp Connected</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Ticket confirmations will be sent to buyers via WhatsApp{user.whatsappPhone ? ` (${user.whatsappPhone})` : ""}.
+              </p>
+            </div>
+          </div>
+        ) : user.whatsappInstanceName ? (
+          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-medium text-amber-800">WhatsApp Disconnected</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Your WhatsApp instance exists but is not connected. Ticket messages will only be sent via email.
+              </p>
+              <Link 
+                href="/dashboard/whatsapp" 
+                className="inline-block mt-2 text-sm text-amber-700 hover:text-amber-900 underline"
+              >
+                Reconnect WhatsApp
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg flex items-start gap-3">
+            <MessageCircle className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-medium text-gray-700">WhatsApp Not Set Up</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Connect WhatsApp to automatically send ticket confirmations to your buyers.
+              </p>
+              <Link 
+                href="/dashboard/whatsapp" 
+                className="inline-block mt-2 text-sm text-gray-700 hover:text-gray-900 underline"
+              >
+                Set up WhatsApp
               </Link>
             </div>
           </div>

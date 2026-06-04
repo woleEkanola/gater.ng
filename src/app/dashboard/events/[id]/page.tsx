@@ -24,7 +24,7 @@ const MapLocationPicker = dynamic(
   () => import("@/components/map-location-picker").then((mod) => mod.MapLocationPicker),
   { ssr: false }
 );
-import { Download, Users, DollarSign, Ticket, Link as LinkIcon, Image, Pencil, Globe, Tag, Trash2, Plus, Percent, HelpCircle, Eye, EyeOff } from "lucide-react";
+import { Download, Users, DollarSign, Ticket, Link as LinkIcon, Image, Pencil, Globe, Tag, Trash2, Plus, Percent, HelpCircle, Eye, EyeOff, MessageCircle, AlertCircle } from "lucide-react";
 
 const ticketTypeSchema = z.object({
   name: z.string().min(1, "Ticket name is required"),
@@ -75,6 +75,11 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
   const [newDiscountType, setNewDiscountType] = useState("percentage");
   const [newDiscountValue, setNewDiscountValue] = useState(0);
   const [newDiscountMaxUses, setNewDiscountMaxUses] = useState<number | "">("");
+  const [newDiscountTicketTypeId, setNewDiscountTicketTypeId] = useState("");
+  const [whatsappStatus, setWhatsappStatus] = useState<{ connected: boolean; phone: string | null; instanceExists: boolean } | null>(null);
+  const [editingDiscountCode, setEditingDiscountCode] = useState<any>(null);
+  const [editDiscountModalOpen, setEditDiscountModalOpen] = useState(false);
+  const [savingEditDiscount, setSavingEditDiscount] = useState(false);
 
   useEffect(() => {
     async function fetchDiscountCodes() {
@@ -86,6 +91,21 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
       }
     }
     fetchDiscountCodes();
+  }, [eventId]);
+
+  useEffect(() => {
+    async function fetchWhatsappStatus() {
+      try {
+        const res = await fetch("/api/whatsapp/status");
+        if (res.ok) {
+          const data = await res.json();
+          setWhatsappStatus(data);
+        }
+      } catch {
+        // ignore
+      }
+    }
+    fetchWhatsappStatus();
   }, [eventId]);
 
   const handleCreateDiscountCode = async () => {
@@ -101,6 +121,7 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
           discountType: newDiscountType,
           discountValue: newDiscountType === "percentage" ? newDiscountValue * 100 : newDiscountValue * 100,
           maxUses: newDiscountMaxUses || null,
+          ticketTypeId: newDiscountTicketTypeId || null,
         }),
       });
       if (res.ok) {
@@ -109,6 +130,7 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
         setNewDiscountCode("");
         setNewDiscountValue(0);
         setNewDiscountMaxUses("");
+        setNewDiscountTicketTypeId("");
         setShowDiscountForm(false);
         toast({ title: "Success", description: "Discount code created" });
       } else {
@@ -132,6 +154,49 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
       }
     } catch {
       toast({ title: "Error", description: "Failed to delete", variant: "destructive" });
+    }
+  };
+
+  const openEditDiscountModal = (discount: any) => {
+    setEditingDiscountCode({
+      ...discount,
+      discountValue: discount.discountType === "percentage" ? discount.discountValue / 100 : discount.discountValue / 100,
+    });
+    setEditDiscountModalOpen(true);
+  };
+
+  const handleUpdateDiscountCode = async () => {
+    if (!editingDiscountCode) return;
+    setSavingEditDiscount(true);
+    try {
+      const res = await fetch("/api/discount-codes", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editingDiscountCode.id,
+          code: editingDiscountCode.code,
+          discountType: editingDiscountCode.discountType,
+          discountValue: editingDiscountCode.discountType === "percentage"
+            ? Math.round(editingDiscountCode.discountValue * 100)
+            : Math.round(editingDiscountCode.discountValue * 100),
+          maxUses: editingDiscountCode.maxUses || null,
+          ticketTypeId: editingDiscountCode.ticketTypeId || null,
+        }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setDiscountCodes(discountCodes.map(c => c.id === updated.id ? updated : c));
+        setEditDiscountModalOpen(false);
+        setEditingDiscountCode(null);
+        toast({ title: "Success", description: "Discount code updated" });
+      } else {
+        const err = await res.json();
+        toast({ title: "Error", description: err.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to update code", variant: "destructive" });
+    } finally {
+      setSavingEditDiscount(false);
     }
   };
 
@@ -715,6 +780,27 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
       </header>
 
       <main className="container mx-auto px-4 py-8">
+        {whatsappStatus && !whatsappStatus.connected && whatsappStatus.instanceExists && (
+          <div className="mb-6 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center justify-between text-sm">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-amber-600" />
+              <span className="text-amber-800">
+                WhatsApp is disconnected — buyers will only receive email confirmations.
+              </span>
+            </div>
+            <Link href="/dashboard/whatsapp" className="text-amber-700 hover:text-amber-900 underline flex-shrink-0">
+              Reconnect →
+            </Link>
+          </div>
+        )}
+        {whatsappStatus?.connected && (
+          <div className="mb-6 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2 text-sm">
+            <MessageCircle className="w-4 h-4 text-green-600" />
+            <span className="text-green-800">
+              WhatsApp confirmations active{whatsappStatus.phone ? ` (${whatsappStatus.phone})` : ""}
+            </span>
+          </div>
+        )}
         <div className="mb-8">
           {isEditingDetails ? (
             <div className="space-y-4">
@@ -962,6 +1048,19 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
                         placeholder="Unlimited"
                       />
                     </div>
+                    <div>
+                      <Label>Applies To</Label>
+                      <select
+                        value={newDiscountTicketTypeId}
+                        onChange={(e) => setNewDiscountTicketTypeId(e.target.value)}
+                        className="w-full border rounded-md px-3 py-2"
+                      >
+                        <option value="">All Ticket Types</option>
+                        {ticketTypes.map((tt: any) => (
+                          <option key={tt.id} value={tt.id}>{tt.name}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     <Button onClick={handleCreateDiscountCode} disabled={savingDiscount || !newDiscountCode}>
@@ -986,18 +1085,92 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
                           {code.discountType === "percentage" 
                             ? `${code.discountValue / 100}% off` 
                             : `₦${(code.discountValue / 100).toLocaleString()} off`}
+                          {code.ticketTypeId 
+                            ? ` • ${ticketTypes.find((tt: any) => tt.id === code.ticketTypeId)?.name || "Specific ticket"}`
+                            : " • All ticket types"}
                           {code.maxUses && ` • ${code.maxUses - code.usesCount} uses left`}
                         </p>
                       </div>
-                      <Button variant="ghost" size="icon" onClick={() => handleDeleteDiscountCode(code.id)}>
-                        <Trash2 className="w-4 h-4 text-red-500" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => openEditDiscountModal(code)}>
+                          <Pencil className="w-4 h-4 text-gray-500" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteDiscountCode(code.id)}>
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
             </CardContent>
           </Card>
+        )}
+
+        {editDiscountModalOpen && editingDiscountCode && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4 space-y-4">
+              <h3 className="text-lg font-semibold">Edit Discount Code</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Code</Label>
+                  <Input
+                    value={editingDiscountCode.code}
+                    onChange={(e) => setEditingDiscountCode({ ...editingDiscountCode, code: e.target.value.toUpperCase() })}
+                  />
+                </div>
+                <div>
+                  <Label>Type</Label>
+                  <select
+                    value={editingDiscountCode.discountType}
+                    onChange={(e) => setEditingDiscountCode({ ...editingDiscountCode, discountType: e.target.value })}
+                    className="w-full border rounded-md px-3 py-2"
+                  >
+                    <option value="percentage">Percentage</option>
+                    <option value="fixed">Fixed Amount</option>
+                  </select>
+                </div>
+                <div>
+                  <Label>Value {editingDiscountCode.discountType === "percentage" ? "(%)" : "(₦)"}</Label>
+                  <Input
+                    type="number"
+                    value={editingDiscountCode.discountValue}
+                    onChange={(e) => setEditingDiscountCode({ ...editingDiscountCode, discountValue: Number(e.target.value) })}
+                  />
+                </div>
+                <div>
+                  <Label>Max Uses (optional)</Label>
+                  <Input
+                    type="number"
+                    value={editingDiscountCode.maxUses ?? ""}
+                    onChange={(e) => setEditingDiscountCode({ ...editingDiscountCode, maxUses: e.target.value ? Number(e.target.value) : null })}
+                  />
+                </div>
+                <div>
+                  <Label>Applies To</Label>
+                  <select
+                    value={editingDiscountCode.ticketTypeId || ""}
+                    onChange={(e) => setEditingDiscountCode({ ...editingDiscountCode, ticketTypeId: e.target.value || null })}
+                    className="w-full border rounded-md px-3 py-2"
+                  >
+                    <option value="">All Ticket Types</option>
+                    {ticketTypes.map((tt: any) => (
+                      <option key={tt.id} value={tt.id}>{tt.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">Uses: {editingDiscountCode.usesCount} / {editingDiscountCode.maxUses || "∞"}</p>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => { setEditDiscountModalOpen(false); setEditingDiscountCode(null); }}>
+                  Cancel
+                </Button>
+                <Button onClick={handleUpdateDiscountCode} disabled={savingEditDiscount}>
+                  {savingEditDiscount ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
+            </div>
+          </div>
         )}
 
         {event?.slug && (

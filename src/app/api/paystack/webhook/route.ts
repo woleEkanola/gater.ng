@@ -120,6 +120,9 @@ export async function POST(request: NextRequest) {
             qrCode: ticket.qrCode,
             orderId: order.id,
             amount: order.amount.toString(),
+            phone: order.buyerPhone,
+            eventId: order.eventId,
+            organizerId: order.event.organizerId,
           });
         }
         console.log(`Sent ${tickets.length} ticket emails for order ${orderId}`);

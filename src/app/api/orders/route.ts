@@ -71,6 +71,22 @@ export async function POST(request: NextRequest) {
       orderItems.push({ ticketTypeId: item.ticketTypeId, quantity: item.quantity });
     }
 
+    // Validate discount code matches ticket types in the order
+    if (discountCode) {
+      const dc = await prisma.discountCode.findUnique({
+        where: { code_eventId: { code: discountCode.toUpperCase(), eventId } },
+      });
+      if (dc?.ticketTypeId) {
+        const orderTicketTypeIds = orderItems.map((oi) => oi.ticketTypeId);
+        if (!orderTicketTypeIds.includes(dc.ticketTypeId)) {
+          return NextResponse.json(
+            { error: "Discount code is not valid for the selected ticket types" },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
     const finalAmount = Math.max(0, totalAmount - appliedDiscount);
 
     let buyerId: string | undefined = undefined;
@@ -163,6 +179,9 @@ export async function POST(request: NextRequest) {
               orderId: order.id,
               amount: "0",
               discountCode: order.discountCode || undefined,
+              phone: phone || null,
+              eventId: event.id,
+              organizerId: event.organizerId,
             });
           }
         }

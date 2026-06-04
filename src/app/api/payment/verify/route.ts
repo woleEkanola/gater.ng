@@ -142,6 +142,9 @@ export async function POST(request: NextRequest) {
           orderId: order.id,
           amount: (order.amount / 100).toString(),
           discountCode: order.discountCode || undefined,
+          phone: order.buyerPhone,
+          eventId: order.eventId,
+          organizerId: order.event.organizerId,
         });
       }
       console.log(`Sent ${tickets.length} ticket emails for order ${orderId}`);

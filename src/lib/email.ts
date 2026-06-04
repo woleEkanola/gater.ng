@@ -1,4 +1,6 @@
 import { Resend } from "resend";
+import { sendTicketWhatsApp } from "@/lib/whatsapp-messages";
+import prisma from "@/lib/prisma";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -17,6 +19,9 @@ interface TicketEmailData {
   orderId: string;
   amount: string;
   discountCode?: string;
+  phone?: string | null;
+  eventId?: string;
+  organizerId?: string;
 }
 
 function getQrCodeUrl(ticketId: string): string {
@@ -26,7 +31,7 @@ function getQrCodeUrl(ticketId: string): string {
 }
 
 export async function sendTicketEmail(data: TicketEmailData) {
-  const { email, name, eventTitle, eventDate, eventLocation, eventBanner, organizerName, organizerImage, ticketId, ticketType, orderId, amount, discountCode } = data;
+  const { email, name, eventTitle, eventDate, eventLocation, eventBanner, organizerName, organizerImage, ticketId, ticketType, orderId, amount, discountCode, phone, eventId, organizerId } = data;
 
   const qrCodeUrl = getQrCodeUrl(ticketId);
   const headerImage = eventBanner || "https://www.hitix.online/og-image.jpg";
@@ -112,6 +117,22 @@ export async function sendTicketEmail(data: TicketEmailData) {
       html: htmlContent,
     });
 
+    // Send WhatsApp message if phone and organizer info are available
+    if (phone && organizerId) {
+      sendTicketWhatsApp({
+        phone,
+        name,
+        eventTitle,
+        eventDate,
+        eventLocation,
+        ticketId,
+        ticketType,
+        orderId,
+        amount,
+        organizerId,
+      }).catch((err) => console.error("WhatsApp send failed (non-blocking):", err));
+    }
+
     return { success: true, data: result };
   } catch (error) {
     console.error("Error sending email:", error);
@@ -129,7 +150,7 @@ export async function sendPasswordResetEmail(email: string, token: string, purpo
   const setPasswordUrl = `${baseUrl}/auth-route/reset-password?token=${token}`;
 
   let subject, title, buttonBg, buttonText;
-  
+
   if (purpose === "set-password") {
     subject = "🔗 Complete Your Account Setup - Hitix";
     title = "🎉 Complete Your Account Setup";
@@ -154,30 +175,30 @@ export async function sendPasswordResetEmail(email: string, token: string, purpo
     <div style="background-color: ${buttonBg}; padding: 30px; text-align: center;">
       <h1 style="color: #ffffff; margin: 0; font-size: 28px;">${title}</h1>
     </div>
-    
+
     <div style="padding: 30px;">
       <p style="color: #374151; font-size: 16px;">Hello,</p>
-      ${purpose === "set-password" 
+      ${purpose === "set-password"
         ? `<p style="color: #374151; font-size: 16px;">Welcome to Hitix! Click the button below to set up your password and access your purchased tickets:</p>`
         : `<p style="color: #374151; font-size: 16px;">We received a request to reset your password. Click the button below to create a new password:</p>`
       }
-      
+
       <div style="text-align: center; margin: 30px 0;">
         <a href="${setPasswordUrl}" style="display: inline-block; background-color: ${buttonBg}; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">${buttonText}</a>
       </div>
-      
+
       <p style="color: #6b7280; font-size: 14px;">This link will expire in ${purpose === "set-password" ? "24 hours" : "1 hour"}.</p>
-      
+
       <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
         If you didn't request this, please ignore this email.
       </p>
-      
+
       <p style="color: #6b7280; font-size: 14px;">
         Best regards,<br>
         The Hitix Team
       </p>
     </div>
-    
+
     <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
       <p style="margin: 0; color: #9ca3af; font-size: 12px;">
         © ${new Date().getFullYear()} Hitix - All rights reserved
@@ -218,27 +239,27 @@ export async function sendVerificationEmail(email: string, token: string) {
     <div style="background-color: #22c55e; padding: 30px; text-align: center;">
       <h1 style="color: #ffffff; margin: 0; font-size: 28px;">✓ Verify Your Email</h1>
     </div>
-    
+
     <div style="padding: 30px;">
       <p style="color: #374151; font-size: 16px;">Hello,</p>
       <p style="color: #374151; font-size: 16px;">Welcome to Hitix! Click the button below to verify your email address:</p>
-      
+
       <div style="text-align: center; margin: 30px 0;">
         <a href="${verifyUrl}" style="display: inline-block; background-color: #22c55e; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">Verify Email</a>
       </div>
-      
+
       <p style="color: #6b7280; font-size: 14px;">This link will expire in 24 hours.</p>
-      
+
       <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
         If you didn't create an account on Hitix, please ignore this email.
       </p>
-      
+
       <p style="color: #6b7280; font-size: 14px;">
         Best regards,<br>
         The Hitix Team
       </p>
     </div>
-    
+
     <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
       <p style="margin: 0; color: #9ca3af; font-size: 12px;">
         © ${new Date().getFullYear()} Hitix - All rights reserved
