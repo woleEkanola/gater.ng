@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       where: { email: session.user.email! },
     });
 
-    if (!user || (event.organizerId !== user.id && user.role !== "ADMIN")) {
+    if (!user || (event.organizerId !== user.id && user.role !== "ADMIN" && user.role !== "SUPERADMIN")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

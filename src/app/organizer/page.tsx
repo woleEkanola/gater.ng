@@ -4,6 +4,8 @@ import { Calendar, Ticket, BarChart, Smartphone, CreditCard, Users, ArrowRight, 
 import prisma from "@/lib/prisma";
 import { formatCurrency, formatShortDate } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 async function getFeaturedEvents() {
   const events = await prisma.event.findMany({
     where: { isFeatured: true, isPublished: true, dateTime: { gte: new Date() } },

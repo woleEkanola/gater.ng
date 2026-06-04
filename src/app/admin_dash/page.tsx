@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { formatDate, formatCurrency } from "@/lib/utils";
+import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { LogoutButton } from "@/components/logout-button";
 import { Input } from "@/components/ui/input";
@@ -56,6 +57,7 @@ interface Transaction {
 }
 
 export default function AdminDashboard() {
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<"overview" | "users" | "events" | "financials" | "reports">("overview");
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -138,13 +140,21 @@ export default function AdminDashboard() {
 
   const handleFeatureEvent = async (eventId: string, featured: boolean) => {
     try {
-      await fetch(`/api/admin/events/${eventId}`, {
+      const res = await fetch(`/api/admin/events/${eventId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ featured }),
       });
-      fetchEvents();
-    } catch {}
+      if (res.ok) {
+        toast({ title: featured ? "Event featured" : "Event unfeatured" });
+        fetchEvents();
+      } else {
+        const err = await res.json();
+        toast({ title: "Error", description: err.error || "Failed to update feature status", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Network error", variant: "destructive" });
+    }
   };
 
   const handleDeleteEvent = async (eventId: string) => {

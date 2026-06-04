@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       where: { id: eventId },
     });
 
-    if (!event || event.organizerId !== user.id) {
+    if (!event || (event.organizerId !== user.id && user.role !== "ADMIN" && user.role !== "SUPERADMIN")) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 

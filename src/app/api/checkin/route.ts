@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
       ? await prisma.event.findUnique({ where: { id: eventId } })
       : null;
 
-    if (event && event.organizerId !== user.id && user.role !== "ADMIN") {
+    if (event && event.organizerId !== user.id && user.role !== "ADMIN" && user.role !== "SUPERADMIN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
