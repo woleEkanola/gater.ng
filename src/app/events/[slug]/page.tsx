@@ -156,21 +156,8 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
               <WishlistButton eventId={event.id} />
               <FollowButton type="event" slug={event.slug} />
             </div>
-                </div>
-                {googleMapsUrl && (
-                  <div className="mt-2">
-                    <a
-                      href={googleMapsUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-4 py-2 border rounded-md text-sm font-medium hover:bg-gray-50"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                      Open in Google Maps
-                    </a>
-                  </div>
-                )}
-              )}
+          </div>
+        )}
 
         <div className="container mx-auto px-4 py-8">
           <div className="grid lg:grid-cols-3 gap-8">
@@ -227,14 +214,27 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
               </div>
 
               {event.showMap && event.latitude && event.longitude && !event.hideAddress && (
-                <div className="rounded-lg overflow-hidden border">
-                  <EventMapDisplay
-                    location={event.location || "Event Location"}
-                    latitude={event.latitude}
-                    longitude={event.longitude}
-                    height={250}
-                  />
-                </div>
+                <>
+                  <div className="rounded-lg overflow-hidden border">
+                    <EventMapDisplay
+                      location={event.location || "Event Location"}
+                      latitude={event.latitude}
+                      longitude={event.longitude}
+                      height={250}
+                    />
+                  </div>
+                  {googleMapsUrl && (
+                    <a
+                      href={googleMapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 mt-2 px-4 py-2 border rounded-md text-sm font-medium hover:bg-gray-50"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      Open in Google Maps
+                    </a>
+                  )}
+                </>
               )}
 
               {event.targetAudience && (
