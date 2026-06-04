@@ -84,12 +84,12 @@ export default async function OrganizerPage() {
                 View all events <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="flex flex-wrap justify-center gap-6">
               {featuredEvents.map((event) => (
                 <Link
                   key={event.id}
                   href={`/events/${event.slug}`}
-                  className="group bg-white rounded-lg border overflow-hidden hover:shadow-lg transition-shadow"
+                  className="group bg-white rounded-lg border overflow-hidden hover:shadow-lg transition-shadow w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] max-w-sm"
                 >
                   <div className="aspect-[5/2] bg-gray-100 overflow-hidden">
                     {event.banner ? (
