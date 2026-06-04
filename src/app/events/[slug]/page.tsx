@@ -11,7 +11,7 @@ import { WishlistButton } from "@/components/wishlist-button";
 import { FollowButton } from "@/components/follow-button";
 import { ResponsiveHeader } from "@/components/responsive-header";
 import { Footer } from "@/components/footer";
-import { AlertCircle, Calendar, MapPin, User, Globe, Users, Tag, HelpCircle, Image as ImageIcon } from "lucide-react";
+import { AlertCircle, Calendar, MapPin, User, Globe, Users, Tag, HelpCircle, Image as ImageIcon, ExternalLink } from "lucide-react";
 import { FaqAccordion } from "@/components/faq-accordion";
 import { SpeakerGrid } from "@/components/speaker-modal";
 import { EventMapDisplay } from "@/components/event-map-display";
@@ -132,6 +132,12 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
     (tt) => tt.price > 0 && !organizerHasPayout
   );
 
+  const googleMapsUrl = event.latitude && event.longitude
+    ? `https://www.google.com/maps/search/?api=1&query=${event.latitude},${event.longitude}`
+    : event.location
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`
+      : null;
+
   const session = await getServerSession(authOptions);
 
   return (
@@ -192,6 +198,17 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
                           ? "Location shown to registered attendees"
                           : event.location || "TBA"}
                     </span>
+                    {!event.isOnline && !event.hideAddress && googleMapsUrl && (
+                      <a
+                        href={googleMapsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Open in Google Maps"
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-700"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
+                    )}
                   </div>
                 </div>
               </div>
