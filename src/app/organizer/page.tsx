@@ -75,14 +75,11 @@ export default async function OrganizerPage() {
 
         {featuredEvents.length > 0 && (
           <section className="pb-16">
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-2">
+            <div className="text-center mb-8">
+              <div className="flex items-center justify-center gap-2">
                 <Star className="w-6 h-6 text-amber-500 fill-amber-500" />
                 <h2 className="text-2xl font-bold">Featured Events</h2>
               </div>
-              <Link href="/browse" className="text-primary hover:opacity-80 flex items-center gap-1 text-sm">
-                View all events <ArrowRight className="w-4 h-4" />
-              </Link>
             </div>
             <div className="flex flex-wrap justify-center gap-6">
               {featuredEvents.map((event) => (
@@ -127,6 +124,11 @@ export default async function OrganizerPage() {
                   </div>
                 </Link>
               ))}
+            </div>
+            <div className="text-center mt-6">
+              <Link href="/browse" className="text-primary hover:opacity-80 inline-flex items-center gap-1 text-sm">
+                View all events <ArrowRight className="w-4 h-4" />
+              </Link>
             </div>
           </section>
         )}
