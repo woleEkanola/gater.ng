@@ -117,6 +117,7 @@ export async function POST(request: NextRequest) {
     const buyerName = data.data?.metadata?.name || buyerEmail?.split("@")[0];
 
     if (buyerEmail) {
+      console.log(`[Verify] Sending ${tickets.length} ticket emails for order ${orderId}, phone: ${order.buyerPhone}, organizerId: ${order.event.organizerId}`);
       for (const ticket of tickets) {
         const ticketType = order.event.ticketTypes.find(
           (tt) => tt.id === ticketData.find((td: any) => td.ticketTypeId === tt.id)?.ticketTypeId

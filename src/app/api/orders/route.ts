@@ -166,6 +166,7 @@ export async function POST(request: NextRequest) {
 
       // Send ticket emails for free tickets
       if (email && tickets.length > 0) {
+        console.log(`[Orders] Sending ${tickets.length} ticket emails for free order ${order.id}, phone: ${normalizedPhone}, organizerId: ${event.organizerId}`);
         for (const item of orderItems) {
           const ticketType = event.ticketTypes.find((tt) => tt.id === item.ticketTypeId);
           const itemTickets = tickets.splice(0, item.quantity);

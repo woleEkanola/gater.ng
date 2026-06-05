@@ -57,6 +57,7 @@ export async function sendTicketWhatsApp(data: TicketWhatsAppData): Promise<bool
     ].join("\n");
 
     const result = await sendTextMessage(organizer.whatsappInstanceName, normalizedPhone, text);
+    console.log(`[WhatsApp] sendTextMessage result:`, result);
     return result.success;
   } catch (error) {
     console.error("Failed to send WhatsApp message:", error);

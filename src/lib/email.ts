@@ -119,6 +119,7 @@ export async function sendTicketEmail(data: TicketEmailData) {
 
     // Send WhatsApp message if phone and organizer info are available
     if (phone && organizerId) {
+      console.log(`[Email] Triggering WhatsApp send for phone: ${phone}, organizerId: ${organizerId}`);
       sendTicketWhatsApp({
         phone,
         name,
@@ -130,7 +131,11 @@ export async function sendTicketEmail(data: TicketEmailData) {
         orderId,
         amount,
         organizerId,
-      }).catch((err) => console.error("WhatsApp send failed (non-blocking):", err));
+      }).then((waResult) => {
+        console.log(`[Email] WhatsApp send completed:`, waResult);
+      }).catch((err) => {
+        console.error("[Email] WhatsApp send failed:", err);
+      });
     }
 
     return { success: true, data: result };

@@ -99,6 +99,7 @@ export async function POST(request: NextRequest) {
       });
 
       if (buyer && buyer.email) {
+        console.log(`[Webhook] Sending ${tickets.length} ticket emails for order ${orderId}, phone: ${order.buyerPhone}, organizerId: ${order.event.organizerId}`);
         for (const ticket of tickets) {
           const ticketType = order.event.ticketTypes.find(
             (tt) => tt.id === ticketData.find((td: { ticketTypeId: string }) => td.ticketTypeId === tt.id)?.ticketTypeId

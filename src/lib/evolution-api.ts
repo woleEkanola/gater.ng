@@ -165,7 +165,9 @@ export async function sendTextMessage(
       headers: headers(),
       body: JSON.stringify({ number, text }),
     });
-    const data = await res.json();
+    const body = await res.text();
+    console.log(`[Evolution API] sendTextMessage response for ${instanceName}:`, body);
+    const data = JSON.parse(body);
     if (!res.ok && data.error) {
       return { success: false, error: data.error };
     }
