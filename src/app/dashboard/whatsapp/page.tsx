@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
-import { ArrowLeft, QrCode, CheckCircle, XCircle, Loader2, Phone, AlertTriangle } from "lucide-react";
+import { ArrowLeft, QrCode, CheckCircle, XCircle, Loader2, Phone, AlertTriangle, RefreshCw } from "lucide-react";
 
 type ConnectionState = "loading" | "disconnected" | "connecting" | "connected" | "error";
 
@@ -15,6 +15,8 @@ export default function WhatsAppSetupPage() {
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [phone, setPhone] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [qrError, setQrError] = useState<string | null>(null);
+  const [qrLoading, setQrLoading] = useState(false);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const isPolling = useRef(false);
 
@@ -35,6 +37,7 @@ export default function WhatsAppSetupPage() {
         setPhone(null);
         setQrCode(null);
         setError(null);
+        setQrError(null);
         return;
       }
 
@@ -43,6 +46,7 @@ export default function WhatsAppSetupPage() {
         setPhone(data.phone);
         setQrCode(null);
         setError(null);
+        setQrError(null);
         if (pollRef.current) {
           clearInterval(pollRef.current);
           pollRef.current = setInterval(pollConnectionHealth, 30000);
@@ -53,6 +57,7 @@ export default function WhatsAppSetupPage() {
         setState("connecting");
         setPhone(null);
         setError(null);
+        setQrError(null);
         fetchQR();
         if (pollRef.current) clearInterval(pollRef.current);
         pollRef.current = setInterval(pollConnection, 5000);
@@ -74,6 +79,7 @@ export default function WhatsAppSetupPage() {
         setState("connected");
         setPhone(data.phone);
         setQrCode(null);
+        setQrError(null);
         if (pollRef.current) clearInterval(pollRef.current);
         pollRef.current = setInterval(pollConnectionHealth, 30000);
         toast({ title: "WhatsApp Connected", description: `Connected as ${data.phone}` });
@@ -96,6 +102,7 @@ export default function WhatsAppSetupPage() {
         setState("disconnected");
         setPhone(null);
         setQrCode(null);
+        setQrError(null);
         if (pollRef.current) clearInterval(pollRef.current);
         toast({
           title: "WhatsApp Disconnected",
@@ -111,20 +118,52 @@ export default function WhatsAppSetupPage() {
   }, [toast]);
 
   const fetchQR = async () => {
-    try {
-      const res = await fetch("/api/whatsapp/qr");
-      const data = await res.json();
-      if (data.qrcode) {
-        setQrCode(data.qrcode);
+    setQrLoading(true);
+    setQrError(null);
+    let gotQR = false;
+    for (let i = 0; i < 3; i++) {
+      try {
+        const res = await fetch("/api/whatsapp/qr");
+        const data = await res.json();
+
+        if (data.state === "connected") {
+          setState("connected");
+          setQrCode(null);
+          setQrLoading(false);
+          if (pollRef.current) clearInterval(pollRef.current);
+          pollRef.current = setInterval(pollConnectionHealth, 30000);
+          return;
+        }
+
+        if (data.qrcode) {
+          setQrCode(data.qrcode);
+          setQrError(null);
+          setQrLoading(false);
+          gotQR = true;
+          return;
+        }
+
+        if (data.error) {
+          setQrError(data.error);
+        }
+      } catch {
+        setQrError("Failed to load QR code");
       }
-    } catch {
-      setQrCode(null);
+
+      if (i < 2) {
+        await new Promise((r) => setTimeout(r, 2000));
+      }
     }
+    if (!gotQR) {
+      setQrError("Could not load QR code. Please try again.");
+    }
+    setQrLoading(false);
   };
 
   const handleConnect = async () => {
     setState("loading");
     setError(null);
+    setQrError(null);
     try {
       const res = await fetch("/api/whatsapp/create-instance", { method: "POST" });
       const data = await res.json();
@@ -147,6 +186,7 @@ export default function WhatsAppSetupPage() {
 
   const handleDisconnect = async () => {
     setState("loading");
+    setQrError(null);
     try {
       const res = await fetch("/api/whatsapp/disconnect", { method: "POST" });
       const data = await res.json();
@@ -240,10 +280,19 @@ export default function WhatsAppSetupPage() {
               {qrCode ? (
                 <div className="flex justify-center p-4 bg-white rounded-lg border">
                   <img
-                    src={`data:image/png;base64,${qrCode}`}
+                    src={qrCode}
                     alt="WhatsApp QR Code"
                     className="w-64 h-64"
                   />
+                </div>
+              ) : qrLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : qrError ? (
+                <div className="text-center py-8">
+                  <XCircle className="w-8 h-8 mx-auto mb-2 text-red-400" />
+                  <p className="text-sm text-red-500">{qrError}</p>
                 </div>
               ) : (
                 <div className="flex justify-center py-8">
@@ -253,9 +302,20 @@ export default function WhatsAppSetupPage() {
               <p className="text-sm text-muted-foreground text-center">
                 Waiting for you to scan... This page will update automatically once connected.
               </p>
-              <Button variant="outline" onClick={handleDisconnect} className="w-full">
-                Cancel
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={fetchQR}
+                  disabled={qrLoading}
+                  className="flex-1"
+                >
+                  <RefreshCw className={`w-4 h-4 mr-2 ${qrLoading ? "animate-spin" : ""}`} />
+                  Refresh QR
+                </Button>
+                <Button variant="outline" onClick={handleDisconnect} className="flex-1">
+                  Cancel
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}

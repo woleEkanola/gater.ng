@@ -49,7 +49,13 @@ export async function createInstance(instanceName: string): Promise<{ success: b
   }
 }
 
-export async function getQRCode(instanceName: string): Promise<{ success: boolean; qrcode?: string; error?: string }> {
+export async function getQRCode(instanceName: string): Promise<{
+  success: boolean;
+  qrcode?: string;
+  code?: string;
+  state?: string;
+  error?: string;
+}> {
   checkConfig();
   try {
     const res = await fetch(`${API_URL}/instance/connect/${instanceName}`, {
@@ -57,10 +63,31 @@ export async function getQRCode(instanceName: string): Promise<{ success: boolea
       headers: headers(),
     });
     const data = await res.json();
-    if (!res.ok && data.error) {
-      return { success: false, error: data.error };
+    console.log(`[Evolution API] getQRCode response for ${instanceName}:`, JSON.stringify(data));
+
+    if (!res.ok) {
+      const err = data.error || data.message || `HTTP ${res.status}`;
+      return { success: false, error: err };
     }
-    return { success: true, qrcode: data.qrcode?.base64 || data.qrcode || data.base64 };
+
+    const state = data.instance?.state || data.state;
+    if (state === "open" || state === "connected") {
+      return { success: true, state: "connected" };
+    }
+
+    let rawBase64 = data.qrcode?.base64 || data.qrcode || data.base64;
+    if (typeof rawBase64 === "string" && rawBase64.startsWith("data:")) {
+      rawBase64 = rawBase64.replace(/^data:image\/[^;]+;base64,/, "");
+    }
+
+    const code = data.code || data.qrcode?.code || data.pairingCode;
+
+    if (!rawBase64 && !code) {
+      console.warn(`[Evolution API] getQRCode: no QR data in response for ${instanceName}`, data);
+      return { success: false, error: "No QR code in response" };
+    }
+
+    return { success: true, qrcode: rawBase64, code, state: state || "connecting" };
   } catch (error: any) {
     return { success: false, error: error.message };
   }
