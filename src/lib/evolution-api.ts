@@ -33,9 +33,10 @@ export async function createInstance(instanceName: string): Promise<{ success: b
       headers: headers(),
       body: JSON.stringify({ instanceName, token: instanceName, qrcode: true }),
     });
-    const data = await res.json();
-    if (!res.ok && data.error) {
-      return { success: false, error: data.error };
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const errMsg = data?.error || data?.message || data?.response?.message || `HTTP ${res.status}`;
+      return { success: false, error: errMsg };
     }
     return { success: true };
   } catch (error: any) {
