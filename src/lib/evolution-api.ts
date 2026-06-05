@@ -31,7 +31,7 @@ export async function createInstance(instanceName: string): Promise<{ success: b
     const res = await fetch(`${API_URL}/instance/create`, {
       method: "POST",
       headers: headers(),
-      body: JSON.stringify({ instanceName, token: instanceName, qrcode: true }),
+      body: JSON.stringify({ instanceName, token: instanceName, qrcode: true, integration: "WHATSAPP-BAILEYS" }),
     });
     const body = await res.text();
     if (!res.ok) {
