@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
     const { 
       title, description, banner, location, dateTime, isPublished,
       isOnline, streamingLink, category, targetAudience, tagIds,
-      showMap, latitude, longitude
+      showMap, latitude, longitude, requireEmail, requirePhone
     } = body;
 
     if (!title || !dateTime) {
@@ -160,6 +160,8 @@ export async function POST(request: NextRequest) {
         showMap: showMap || false,
         latitude: latitude ? parseFloat(latitude) : null,
         longitude: longitude ? parseFloat(longitude) : null,
+        requireEmail: requireEmail !== undefined ? requireEmail : true,
+        requirePhone: requirePhone !== undefined ? requirePhone : false,
         tags: tagIds?.length ? { connect: tagIds.map((id: string) => ({ id })) } : undefined,
       },
       include: {

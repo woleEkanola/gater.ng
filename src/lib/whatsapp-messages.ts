@@ -14,6 +14,15 @@ interface TicketWhatsAppData {
   organizerId: string;
 }
 
+export function normalizePhone(phone: string): string {
+  if (!phone) return "";
+  const digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("234")) return digits;
+  if (digits.startsWith("0")) return "234" + digits.slice(1);
+  if (digits.startsWith("2340")) return "234" + digits.slice(4);
+  return digits;
+}
+
 export async function sendTicketWhatsApp(data: TicketWhatsAppData): Promise<boolean> {
   try {
     const organizer = await prisma.user.findUnique({
@@ -22,8 +31,12 @@ export async function sendTicketWhatsApp(data: TicketWhatsAppData): Promise<bool
     });
 
     if (!organizer?.whatsappConnected || !organizer?.whatsappInstanceName) {
+      console.log(`[WhatsApp] Organizer ${data.organizerId} not connected or no instance`);
       return false;
     }
+
+    const normalizedPhone = normalizePhone(data.phone);
+    console.log(`[WhatsApp] Sending to ${data.phone} → normalized: ${normalizedPhone}`);
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "https://www.hitix.online";
     const ticketUrl = `${appUrl}/tickets/${data.orderId}`;
@@ -43,7 +56,7 @@ export async function sendTicketWhatsApp(data: TicketWhatsAppData): Promise<bool
       `_Powered by Hitix_`,
     ].join("\n");
 
-    const result = await sendTextMessage(organizer.whatsappInstanceName, data.phone, text);
+    const result = await sendTextMessage(organizer.whatsappInstanceName, normalizedPhone, text);
     return result.success;
   } catch (error) {
     console.error("Failed to send WhatsApp message:", error);

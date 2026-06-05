@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { generateQRCode, generateTicketId } from "@/lib/qr";
 import { sendTicketEmail } from "@/lib/email";
+import { normalizePhone } from "@/lib/whatsapp-messages";
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,11 +16,6 @@ export async function POST(request: NextRequest) {
     if (!eventId || !items || !items.length) {
       console.log("[API /orders] POST - invalid request, missing eventId or items");
       return NextResponse.json({ error: "Event and tickets are required" }, { status: 400 });
-    }
-
-    if (!email || !email.trim()) {
-      console.log("[API /orders] POST - email missing");
-      return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
 
     if (!name || !name.trim()) {
@@ -40,10 +36,22 @@ export async function POST(request: NextRequest) {
 
     console.log("[API /orders] POST - event found:", event.id, event.slug, event.title, "isPublished:", event.isPublished);
 
+    if (event.requireEmail !== false && (!email || !email.trim())) {
+      console.log("[API /orders] POST - email missing");
+      return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    }
+
+    if (event.requirePhone && (!phone || !phone.trim())) {
+      console.log("[API /orders] POST - phone missing");
+      return NextResponse.json({ error: "Phone number is required" }, { status: 400 });
+    }
+
     if (!event.isPublished) {
       console.log("[API /orders] POST - event not published");
       return NextResponse.json({ error: "Event is not available for purchase" }, { status: 400 });
     }
+
+    const normalizedPhone = phone ? normalizePhone(phone) : null;
 
     let totalAmount = 0;
     const orderItems: { ticketTypeId: string; quantity: number }[] = [];
@@ -100,9 +108,9 @@ export async function POST(request: NextRequest) {
 
     const orderData: Record<string, unknown> = {
       buyerId: buyerId || undefined,
-      buyerEmail: email,
+      buyerEmail: email || null,
       buyerName: name || null,
-      buyerPhone: phone || null,
+      buyerPhone: normalizedPhone,
       eventId,
       amount: finalAmount,
       discountCode: discountCode || null,
@@ -179,7 +187,7 @@ export async function POST(request: NextRequest) {
               orderId: order.id,
               amount: "0",
               discountCode: order.discountCode || undefined,
-              phone: phone || null,
+              phone: normalizedPhone,
               eventId: event.id,
               organizerId: event.organizerId,
             });

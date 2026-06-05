@@ -35,6 +35,8 @@ const eventSchema = z.object({
   tagIds: z.array(z.string()).optional(),
   hideAddress: z.boolean().default(false),
   hideStreamingLink: z.boolean().default(false),
+  requireEmail: z.boolean().default(true),
+  requirePhone: z.boolean().default(false),
 });
 
 type EventFormData = z.infer<typeof eventSchema>;
@@ -62,6 +64,8 @@ export default function CreateEventPage() {
   const [isOnline, setIsOnline] = useState(false);
   const [hideAddress, setHideAddress] = useState(false);
   const [hideStreamingLink, setHideStreamingLink] = useState(false);
+  const [requireEmail, setRequireEmail] = useState(true);
+  const [requirePhone, setRequirePhone] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const [mapLocation, setMapLocation] = useState("");
   const [mapLatitude, setMapLatitude] = useState<number | null>(null);
@@ -166,6 +170,8 @@ export default function CreateEventPage() {
           showMap,
           latitude: mapLatitude,
           longitude: mapLongitude,
+          requireEmail,
+          requirePhone,
         }),
       });
 
@@ -428,6 +434,41 @@ export default function CreateEventPage() {
                   className="w-4 h-4"
                 />
                 <Label htmlFor="isPublished">Publish event immediately</Label>
+              </div>
+
+              <div className="space-y-3 p-4 border rounded-lg bg-gray-50">
+                <Label className="font-semibold">Buyer Information</Label>
+                <p className="text-sm text-muted-foreground">Choose what buyers must provide when purchasing tickets.</p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="requireEmail"
+                    checked={requireEmail}
+                    onChange={(e) => {
+                      setRequireEmail(e.target.checked);
+                      setValue("requireEmail", e.target.checked);
+                    }}
+                    className="w-4 h-4"
+                  />
+                  <Label htmlFor="requireEmail" className="cursor-pointer">
+                    Require email address
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="requirePhone"
+                    checked={requirePhone}
+                    onChange={(e) => {
+                      setRequirePhone(e.target.checked);
+                      setValue("requirePhone", e.target.checked);
+                    }}
+                    className="w-4 h-4"
+                  />
+                  <Label htmlFor="requirePhone" className="cursor-pointer">
+                    Require phone number (for WhatsApp confirmations)
+                  </Label>
+                </div>
               </div>
 
               <div className="flex gap-4">

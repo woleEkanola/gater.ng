@@ -135,6 +135,8 @@ model Event {
   instagramUrl  String?
   youtubeUrl    String?
   linkedinUrl   String?
+  requireEmail  Boolean   @default(true)
+  requirePhone  Boolean   @default(false)
   organizerId String
   organizer   User      @relation(fields: [organizerId], references: [id], onDelete: Cascade)
 

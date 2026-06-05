@@ -84,7 +84,7 @@ export async function PUT(
       isOnline, streamingLink, accessInstructions, category, targetAudience,
       speakerLabel, contactEmail, contactPhone, websiteUrl, twitterUrl,
       facebookUrl, instagramUrl, youtubeUrl, linkedinUrl,
-      showMap, latitude, longitude,
+      showMap, latitude, longitude, requireEmail, requirePhone,
     } = body;
 
     const updatedEvent = await prisma.event.update({
@@ -113,6 +113,8 @@ export async function PUT(
         ...(showMap !== undefined && { showMap }),
         ...(latitude !== undefined && { latitude: latitude ? parseFloat(latitude) : null }),
         ...(longitude !== undefined && { longitude: longitude ? parseFloat(longitude) : null }),
+        ...(requireEmail !== undefined && { requireEmail }),
+        ...(requirePhone !== undefined && { requirePhone }),
       },
       include: {
         organizer: { select: { id: true, name: true, email: true } },

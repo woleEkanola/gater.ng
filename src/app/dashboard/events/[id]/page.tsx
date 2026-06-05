@@ -227,6 +227,8 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
   const [editedFacebookUrl, setEditedFacebookUrl] = useState("");
   const [editedInstagramUrl, setEditedInstagramUrl] = useState("");
   const [editedYoutubeUrl, setEditedYoutubeUrl] = useState("");
+  const [editedRequireEmail, setEditedRequireEmail] = useState(true);
+  const [editedRequirePhone, setEditedRequirePhone] = useState(false);
 
   useEffect(() => {
     async function fetchFaqs() {
@@ -512,6 +514,8 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
     setEditedFacebookUrl(event.facebookUrl || "");
     setEditedInstagramUrl(event.instagramUrl || "");
     setEditedYoutubeUrl(event.youtubeUrl || "");
+    setEditedRequireEmail(event.requireEmail !== undefined ? event.requireEmail : true);
+    setEditedRequirePhone(event.requirePhone !== undefined ? event.requirePhone : false);
     setIsEditingDetails(true);
   };
 
@@ -542,6 +546,8 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
           facebookUrl: editedFacebookUrl,
           instagramUrl: editedInstagramUrl,
           youtubeUrl: editedYoutubeUrl,
+          requireEmail: editedRequireEmail,
+          requirePhone: editedRequirePhone,
         }),
       });
       const result = await res.json();
@@ -571,6 +577,8 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
         facebookUrl: editedFacebookUrl,
         instagramUrl: editedInstagramUrl,
         youtubeUrl: editedYoutubeUrl,
+        requireEmail: editedRequireEmail,
+        requirePhone: editedRequirePhone,
       });
       setIsEditingDetails(false);
       toast({ title: "Success", description: "Event details updated" });
@@ -1515,6 +1523,42 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
             </div>
             <Button onClick={saveEventDetails} disabled={savingDetails}>
               {savingDetails ? "Saving..." : "Save Contacts & Links"}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Buyer Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">Choose what buyers must provide when purchasing tickets.</p>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="editedRequireEmail"
+                checked={editedRequireEmail}
+                onChange={(e) => setEditedRequireEmail(e.target.checked)}
+                className="w-4 h-4"
+              />
+              <Label htmlFor="editedRequireEmail" className="cursor-pointer">
+                Require email address
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="editedRequirePhone"
+                checked={editedRequirePhone}
+                onChange={(e) => setEditedRequirePhone(e.target.checked)}
+                className="w-4 h-4"
+              />
+              <Label htmlFor="editedRequirePhone" className="cursor-pointer">
+                Require phone number (for WhatsApp confirmations)
+              </Label>
+            </div>
+            <Button onClick={saveEventDetails} disabled={savingDetails}>
+              {savingDetails ? "Saving..." : "Save Buyer Settings"}
             </Button>
           </CardContent>
         </Card>

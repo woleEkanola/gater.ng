@@ -29,6 +29,8 @@ interface Event {
   location: string;
   dateTime: string;
   ticketTypes: TicketType[];
+  requireEmail?: boolean;
+  requirePhone?: boolean;
 }
 
 export default function CheckoutPage({ params, searchParams }: { params: Promise<{ eventId: string }>; searchParams: Promise<{ ticketType?: string }> }) {
@@ -130,23 +132,23 @@ export default function CheckoutPage({ params, searchParams }: { params: Promise
   const totalTickets = Object.values(cart).reduce((sum, qty) => sum + qty, 0);
 
   const handleCheckout = async () => {
-    if (!buyerInfo.email) {
-      toast({ title: "Error", description: "Email is required", variant: "destructive" });
-      return;
-    }
-
     if (totalTickets === 0) {
       toast({ title: "Error", description: "Please select at least one ticket", variant: "destructive" });
       return;
     }
 
-    if (!buyerInfo.email || !buyerInfo.email.trim()) {
+    if (!buyerInfo.name || !buyerInfo.name.trim()) {
+      toast({ title: "Error", description: "Name is required", variant: "destructive" });
+      return;
+    }
+
+    if (event?.requireEmail !== false && (!buyerInfo.email || !buyerInfo.email.trim())) {
       toast({ title: "Error", description: "Email is required", variant: "destructive" });
       return;
     }
 
-    if (!buyerInfo.name || !buyerInfo.name.trim()) {
-      toast({ title: "Error", description: "Name is required", variant: "destructive" });
+    if (event?.requirePhone && (!buyerInfo.phone || !buyerInfo.phone.trim())) {
+      toast({ title: "Error", description: "Phone number is required", variant: "destructive" });
       return;
     }
 
@@ -279,27 +281,57 @@ export default function CheckoutPage({ params, searchParams }: { params: Promise
                   placeholder="Your name"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={buyerInfo.email}
-                  onChange={(e) => setBuyerInfo({ ...buyerInfo, email: e.target.value })}
-                  placeholder="your@email.com"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  value={buyerInfo.phone}
-                  onChange={(e) => setBuyerInfo({ ...buyerInfo, phone: e.target.value })}
-                  placeholder="08012345678"
-                />
-              </div>
+              {event?.requireEmail !== false && (
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email <span className="text-red-500">*</span></Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={buyerInfo.email}
+                    onChange={(e) => setBuyerInfo({ ...buyerInfo, email: e.target.value })}
+                    placeholder="your@email.com"
+                    required
+                  />
+                </div>
+              )}
+              {event?.requireEmail === false && (
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email <span className="text-sm text-muted-foreground">(optional)</span></Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={buyerInfo.email}
+                    onChange={(e) => setBuyerInfo({ ...buyerInfo, email: e.target.value })}
+                    placeholder="your@email.com"
+                  />
+                </div>
+              )}
+              {event?.requirePhone ? (
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone Number <span className="text-red-500">*</span></Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={buyerInfo.phone}
+                    onChange={(e) => setBuyerInfo({ ...buyerInfo, phone: e.target.value })}
+                    placeholder="08012345678"
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">Used for WhatsApp ticket confirmation</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone Number <span className="text-sm text-muted-foreground">(optional)</span></Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={buyerInfo.phone}
+                    onChange={(e) => setBuyerInfo({ ...buyerInfo, phone: e.target.value })}
+                    placeholder="08012345678"
+                  />
+                  <p className="text-xs text-muted-foreground">Provide for WhatsApp ticket confirmation</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
