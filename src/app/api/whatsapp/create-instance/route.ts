@@ -21,17 +21,22 @@ export async function POST(request: NextRequest) {
 
     const instanceName = `org-${user.id}`;
 
-    const existing = await prisma.user.findFirst({
-      where: { whatsappInstanceName: instanceName, whatsappConnected: true },
-    });
-
-    if (existing) {
-      return NextResponse.json({ error: "WhatsApp already connected" }, { status: 400 });
+    // If the current user already has an instance (connected or not), allow reconnecting
+    if (user.whatsappInstanceName) {
+      return NextResponse.json({ success: true, instanceName: user.whatsappInstanceName, alreadyExists: true });
     }
 
     const result = await createInstance(instanceName);
 
     if (!result.success) {
+      // If instance already exists on Evolution API, just link it in our DB
+      if (result.error?.toLowerCase().includes("already") || result.error?.toLowerCase().includes("exists")) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { whatsappInstanceName: instanceName, whatsappConnected: false },
+        });
+        return NextResponse.json({ success: true, instanceName, recovered: true });
+      }
       return NextResponse.json({ error: result.error || "Failed to create instance" }, { status: 500 });
     }
 

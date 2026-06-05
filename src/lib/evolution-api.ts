@@ -33,9 +33,14 @@ export async function createInstance(instanceName: string): Promise<{ success: b
       headers: headers(),
       body: JSON.stringify({ instanceName, token: instanceName, qrcode: true }),
     });
-    const data = await res.json().catch(() => null);
+    const body = await res.text();
     if (!res.ok) {
-      const errMsg = data?.error || data?.message || data?.response?.message || `HTTP ${res.status}`;
+      console.error(`[Evolution API] createInstance failed: HTTP ${res.status}`, body);
+      let errMsg = `HTTP ${res.status}`;
+      try {
+        const data = JSON.parse(body);
+        errMsg = data.error || data.message || data.response?.message || errMsg;
+      } catch {}
       return { success: false, error: errMsg };
     }
     return { success: true };
