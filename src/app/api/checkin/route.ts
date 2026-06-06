@@ -138,6 +138,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const eventId = searchParams.get("eventId");
+    const mine = searchParams.get("mine") === "true";
 
     if (!eventId) {
       return NextResponse.json({ error: "Event ID is required" }, { status: 400 });
@@ -176,6 +177,7 @@ export async function GET(request: NextRequest) {
         ticket: {
           ticketType: { eventId },
         },
+        ...(mine ? { checkedBy: user.id } : {}),
       },
       include: {
         ticket: {
@@ -208,6 +210,7 @@ export async function GET(request: NextRequest) {
       totalTickets,
       totalAdmissions: totalAdmissions._sum.groupSize || 0,
       checkedIn: checkIns.length,
+      myCheckInCount: mine ? checkIns.length : undefined,
       checkIns,
     });
   } catch (error) {
