@@ -80,6 +80,10 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
   const [editingDiscountCode, setEditingDiscountCode] = useState<any>(null);
   const [editDiscountModalOpen, setEditDiscountModalOpen] = useState(false);
   const [savingEditDiscount, setSavingEditDiscount] = useState(false);
+  const [staffMembers, setStaffMembers] = useState<any[]>([]);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [invitePhone, setInvitePhone] = useState("");
+  const [invitingStaff, setInvitingStaff] = useState(false);
 
   useEffect(() => {
     async function fetchDiscountCodes() {
@@ -107,6 +111,82 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
     }
     fetchWhatsappStatus();
   }, [eventId]);
+
+  useEffect(() => {
+    async function fetchStaff() {
+      if (!eventId) return;
+      const res = await fetch(`/api/events/${eventId}/staff`);
+      if (res.ok) {
+        const data = await res.json();
+        setStaffMembers(data);
+      }
+    }
+    fetchStaff();
+  }, [eventId]);
+
+  const handleInviteStaff = async () => {
+    if (!inviteEmail.trim()) {
+      toast({ title: "Error", description: "Email is required", variant: "destructive" });
+      return;
+    }
+    setInvitingStaff(true);
+    try {
+      const res = await fetch(`/api/events/${eventId}/staff`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: inviteEmail.trim(), phone: invitePhone.trim() || null }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: "Success", description: "Invitation sent" });
+        setInviteEmail("");
+        setInvitePhone("");
+        const staffRes = await fetch(`/api/events/${eventId}/staff`);
+        if (staffRes.ok) {
+          setStaffMembers(await staffRes.json());
+        }
+      } else {
+        toast({ title: "Error", description: data.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to send invitation", variant: "destructive" });
+    } finally {
+      setInvitingStaff(false);
+    }
+  };
+
+  const handleRevokeStaff = async (staffId: string) => {
+    if (!confirm("Revoke this staff member's access?")) return;
+    try {
+      const res = await fetch(`/api/events/${eventId}/staff/${staffId}`, { method: "DELETE" });
+      if (res.ok) {
+        toast({ title: "Success", description: "Access revoked" });
+        const staffRes = await fetch(`/api/events/${eventId}/staff`);
+        if (staffRes.ok) {
+          setStaffMembers(await staffRes.json());
+        }
+      } else {
+        const data = await res.json();
+        toast({ title: "Error", description: data.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to revoke access", variant: "destructive" });
+    }
+  };
+
+  const handleResendInvitation = async (staffId: string) => {
+    try {
+      const res = await fetch(`/api/events/${eventId}/staff/${staffId}/resend`, { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: "Success", description: "Invitation resent" });
+      } else {
+        toast({ title: "Error", description: data.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to resend invitation", variant: "destructive" });
+    }
+  };
 
   const handleCreateDiscountCode = async () => {
     if (!newDiscountCode) return;
@@ -1560,6 +1640,98 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
             <Button onClick={saveEventDetails} disabled={savingDetails}>
               {savingDetails ? "Saving..." : "Save Buyer Settings"}
             </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Check-in Staff</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Invite people to help check in attendees at the event gate
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Email Address</Label>
+                <Input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="staff@example.com"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Phone Number (optional)</Label>
+                <Input
+                  type="tel"
+                  value={invitePhone}
+                  onChange={(e) => setInvitePhone(e.target.value)}
+                  placeholder="08012345678"
+                />
+                <p className="text-xs text-muted-foreground">
+                  For WhatsApp OTP delivery
+                </p>
+              </div>
+            </div>
+            <Button onClick={handleInviteStaff} disabled={invitingStaff}>
+              {invitingStaff ? "Sending..." : "Invite Staff"}
+            </Button>
+
+            {staffMembers.length > 0 && (
+              <div className="space-y-3 pt-4 border-t">
+                <h4 className="font-medium">Invited Staff</h4>
+                {staffMembers.map((staff) => (
+                  <div
+                    key={staff.id}
+                    className="flex items-center justify-between p-3 bg-muted rounded-lg"
+                  >
+                    <div className="flex-1">
+                      <p className="font-medium">{staff.user.email}</p>
+                      {staff.user.phone && (
+                        <p className="text-sm text-muted-foreground">{staff.user.phone}</p>
+                      )}
+                      <div className="flex items-center gap-2 mt-1">
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                            staff.status === "ACTIVE"
+                              ? "bg-green-100 text-green-800"
+                              : staff.status === "PENDING"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : "bg-red-100 text-red-800"
+                          }`}
+                        >
+                          {staff.status}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          Invited {new Date(staff.invitedAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      {staff.status === "PENDING" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleResendInvitation(staff.id)}
+                        >
+                          Resend
+                        </Button>
+                      )}
+                      {staff.status !== "REVOKED" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleRevokeStaff(staff.id)}
+                        >
+                          Revoke
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 

@@ -55,6 +55,10 @@ model User {
   whatsappConnected      Boolean   @default(false)
   whatsappPhone          String?
   
+  checkinOtp             String?
+  checkinOtpExpiry       DateTime?
+  phone                  String?
+  
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   accounts      Account[]
@@ -68,6 +72,7 @@ model User {
   followers     Follow[]  @relation("Follower")
   wishlist      Wishlist[]
   eventFollows EventFollow[]
+  eventStaff   EventStaff[]
 }
 
 model Account {
@@ -149,6 +154,7 @@ model Event {
   gallery    EventGallery[]
   speakers   Speaker[]
   followers  EventFollow[]
+  eventStaff EventStaff[]
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
@@ -327,6 +333,23 @@ model EventFollow {
   @@unique([userId, eventId])
   @@index([userId])
   @@index([eventId])
+}
+
+model EventStaff {
+  id           String   @id @default(cuid())
+  eventId      String
+  event        Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role         String   @default("CHECKER")
+  status       String   @default("PENDING")
+  token        String?
+  tokenExpiry  DateTime?
+  invitedAt    DateTime @default(now())
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
 }
 
 model AudienceType {

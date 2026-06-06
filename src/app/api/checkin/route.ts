@@ -30,8 +30,20 @@ export async function POST(request: NextRequest) {
       ? await prisma.event.findUnique({ where: { id: eventId } })
       : null;
 
-    if (event && event.organizerId !== user.id && user.role !== "ADMIN" && user.role !== "SUPERADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (event) {
+      const isOrganizer = event.organizerId === user.id;
+      const isAdmin = user.role === "ADMIN" || user.role === "SUPERADMIN";
+      const isStaff = await prisma.eventStaff.findFirst({
+        where: {
+          eventId: event.id,
+          userId: user.id,
+          status: "ACTIVE",
+        },
+      });
+
+      if (!isOrganizer && !isAdmin && !isStaff) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
     }
 
     const ticket = await prisma.ticket.findUnique({
@@ -141,7 +153,21 @@ export async function GET(request: NextRequest) {
 
     const event = await prisma.event.findUnique({ where: { id: eventId } });
 
-    if (!event || (event.organizerId !== user.id && user.role !== "ADMIN")) {
+    if (!event) {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+
+    const isOrganizer = event.organizerId === user.id;
+    const isAdmin = user.role === "ADMIN" || user.role === "SUPERADMIN";
+    const isStaff = await prisma.eventStaff.findFirst({
+      where: {
+        eventId: event.id,
+        userId: user.id,
+        status: "ACTIVE",
+      },
+    });
+
+    if (!isOrganizer && !isAdmin && !isStaff) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

@@ -289,3 +289,124 @@ export async function sendVerificationEmail(email: string, token: string) {
     return { success: false, error };
   }
 }
+
+export async function sendCheckinInvitationEmail(email: string, token: string, eventId: string, eventTitle: string) {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "https://www.hitix.online";
+  const acceptUrl = `${baseUrl}/checkin/accept?token=${token}&eventId=${eventId}`;
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f9fafb; padding: 20px;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+    <div style="background-color: #8b5cf6; padding: 30px; text-align: center;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 28px;">🎫 Check-in Invitation</h1>
+    </div>
+
+    <div style="padding: 30px;">
+      <p style="color: #374151; font-size: 16px;">Hello,</p>
+      <p style="color: #374151; font-size: 16px;">You've been invited to help check in attendees for <strong>${eventTitle}</strong>.</p>
+
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${acceptUrl}" style="display: inline-block; background-color: #8b5cf6; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">Accept Invitation</a>
+      </div>
+
+      <p style="color: #6b7280; font-size: 14px;">This invitation link expires in 7 days.</p>
+
+      <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
+        If you didn't expect this invitation, please ignore this email.
+      </p>
+
+      <p style="color: #6b7280; font-size: 14px;">
+        Best regards,<br>
+        The Hitix Team
+      </p>
+    </div>
+
+    <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+      <p style="margin: 0; color: #9ca3af; font-size: 12px;">
+        © ${new Date().getFullYear()} Hitix - All rights reserved
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+`;
+
+  try {
+    const result = await resend.emails.send({
+      from: "Hitix <noreply@hitix.online>",
+      to: email,
+      subject: `🎫 You're invited to check in attendees for ${eventTitle}`,
+      html: htmlContent,
+    });
+
+    return { success: true, data: result };
+  } catch (error) {
+    console.error("Error sending check-in invitation email:", error);
+    return { success: false, error };
+  }
+}
+
+export async function sendCheckinOtpEmail(email: string, otp: string) {
+  const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f9fafb; padding: 20px;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+    <div style="background-color: #8b5cf6; padding: 30px; text-align: center;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 28px;">🔐 Verification Code</h1>
+    </div>
+
+    <div style="padding: 30px;">
+      <p style="color: #374151; font-size: 16px;">Hello,</p>
+      <p style="color: #374151; font-size: 16px;">Your verification code for check-in access is:</p>
+
+      <div style="text-align: center; margin: 30px 0; padding: 25px; background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); border-radius: 12px; border: 2px solid #d1d5db;">
+        <p style="margin: 0; color: #111827; font-size: 48px; font-weight: 900; font-family: 'Courier New', monospace; letter-spacing: 8px;">${otp}</p>
+      </div>
+
+      <p style="color: #6b7280; font-size: 14px;">This code expires in 10 minutes.</p>
+
+      <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
+        If you didn't request this code, please ignore this email.
+      </p>
+
+      <p style="color: #6b7280; font-size: 14px;">
+        Best regards,<br>
+        The Hitix Team
+      </p>
+    </div>
+
+    <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+      <p style="margin: 0; color: #9ca3af; font-size: 12px;">
+        © ${new Date().getFullYear()} Hitix - All rights reserved
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+`;
+
+  try {
+    const result = await resend.emails.send({
+      from: "Hitix <noreply@hitix.online>",
+      to: email,
+      subject: "🔐 Your check-in verification code",
+      html: htmlContent,
+    });
+
+    return { success: true, data: result };
+  } catch (error) {
+    console.error("Error sending check-in OTP email:", error);
+    return { success: false, error };
+  }
+}
