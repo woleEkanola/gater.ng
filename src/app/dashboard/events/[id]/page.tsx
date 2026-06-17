@@ -96,6 +96,8 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
   const [invitingStaff, setInvitingStaff] = useState(false);
   const [deleteTicketTarget, setDeleteTicketTarget] = useState<any>(null);
   const [deletingTicket, setDeletingTicket] = useState(false);
+  const [deleteTypeTarget, setDeleteTypeTarget] = useState<any>(null);
+  const [deletingType, setDeletingType] = useState(false);
 
   useEffect(() => {
     async function fetchDiscountCodes() {
@@ -217,6 +219,26 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
       toast({ title: "Error", description: "Failed to delete ticket", variant: "destructive" });
     } finally {
       setDeletingTicket(false);
+    }
+  };
+
+  const handleDeleteTicketType = async () => {
+    if (!deleteTypeTarget) return;
+    setDeletingType(true);
+    try {
+      const res = await fetch(`/api/ticket-types/${deleteTypeTarget.id}`, { method: "DELETE" });
+      if (res.ok) {
+        toast({ title: "Success", description: "Ticket type deleted" });
+        setTicketTypes(ticketTypes.filter((tt) => tt.id !== deleteTypeTarget.id));
+        setDeleteTypeTarget(null);
+      } else {
+        const data = await res.json();
+        toast({ title: "Error", description: data.error || "Failed to delete", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to delete ticket type", variant: "destructive" });
+    } finally {
+      setDeletingType(false);
     }
   };
 
@@ -1861,14 +1883,24 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
                           </p>
                         </div>
                       </div>
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => openEditTicketModal(tt)}
-                        title="Edit ticket type"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => setDeleteTypeTarget(tt)}
+                          title="Delete ticket type"
+                        >
+                          <Trash2 className="w-4 h-4 text-red-600" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => openEditTicketModal(tt)}
+                          title="Edit ticket type"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -2164,6 +2196,25 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
               <AlertDialogCancel disabled={deletingTicket}>Cancel</AlertDialogCancel>
               <AlertDialogAction onClick={handleDeleteTicket} disabled={deletingTicket}>
                 {deletingTicket ? "Deleting..." : "Delete"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={!!deleteTypeTarget} onOpenChange={(open) => !open && setDeleteTypeTarget(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Ticket Type</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete the ticket type{" "}
+                <span className="font-semibold">{deleteTypeTarget?.name}</span>?
+                This action cannot be undone. It will no longer appear on your event page.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deletingType}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteTicketType} disabled={deletingType}>
+                {deletingType ? "Deleting..." : "Delete"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

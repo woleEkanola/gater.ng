@@ -132,7 +132,7 @@ export async function GET(request: NextRequest) {
     }
 
     const ticketTypes = await prisma.ticketType.findMany({
-      where: { eventId },
+      where: { eventId, deletedAt: null },
       orderBy: { price: "asc" },
     });
 

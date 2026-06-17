@@ -63,7 +63,7 @@ export async function GET() {
       where,
       include: {
         organizer: { select: { id: true, name: true } },
-        ticketTypes: true,
+        ticketTypes: { where: { deletedAt: null } },
         tags: true,
         _count: { select: { orders: true } },
       },
@@ -100,7 +100,7 @@ export async function GET() {
         where: fallbackWhere,
         include: {
           organizer: { select: { id: true, name: true } },
-          ticketTypes: true,
+          ticketTypes: { where: { deletedAt: null } },
           tags: true,
           _count: { select: { orders: true } },
         },
@@ -121,7 +121,7 @@ export async function GET() {
         where: finalWhere,
         include: {
           organizer: { select: { id: true, name: true } },
-          ticketTypes: true,
+          ticketTypes: { where: { deletedAt: null } },
           tags: true,
           _count: { select: { orders: true } },
         },

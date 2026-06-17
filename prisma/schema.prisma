@@ -178,6 +178,7 @@ model TicketType {
   event         Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
   tickets       Ticket[]
   discountCodes DiscountCode[]
+  deletedAt     DateTime?
   createdAt     DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 }

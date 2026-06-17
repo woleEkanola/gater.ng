@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     console.log("[API /orders] POST - querying event by id:", eventId);
     const event = await prisma.event.findUnique({
       where: { id: eventId },
-      include: { ticketTypes: true, organizer: { select: { name: true, image: true } } },
+      include: { ticketTypes: { where: { deletedAt: null } }, organizer: { select: { name: true, image: true } } },
     });
 
     if (!event) {

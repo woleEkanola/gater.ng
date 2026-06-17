@@ -40,6 +40,7 @@ export async function GET(
             location: true,
             dateTime: true,
             ticketTypes: {
+              where: { deletedAt: null },
               select: {
                 price: true,
                 quantity: true,

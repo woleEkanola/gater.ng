@@ -58,14 +58,13 @@ export async function POST(request: NextRequest) {
     // If ticketTypeId is provided, verify it belongs to the event
     if (ticketTypeId) {
       const ticketType = await prisma.ticketType.findUnique({
-        where: { id: ticketTypeId },
+        where: { id: ticketTypeId, deletedAt: null },
       });
       if (!ticketType || ticketType.eventId !== eventId) {
         return NextResponse.json({ error: "Ticket type not found for this event" }, { status: 400 });
       }
     }
 
-    // Check for duplicate code
     const existing = await prisma.discountCode.findUnique({
       where: { code_eventId: { code: code.toUpperCase(), eventId } },
     });
@@ -137,7 +136,7 @@ export async function PUT(request: NextRequest) {
     // If ticketTypeId is being set, verify it belongs to the event
     if (ticketTypeId) {
       const ticketType = await prisma.ticketType.findUnique({
-        where: { id: ticketTypeId },
+        where: { id: ticketTypeId, deletedAt: null },
       });
       if (!ticketType || ticketType.eventId !== existing.eventId) {
         return NextResponse.json({ error: "Ticket type not found for this event" }, { status: 400 });

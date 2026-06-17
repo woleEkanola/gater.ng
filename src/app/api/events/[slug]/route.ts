@@ -22,7 +22,7 @@ export async function GET(
       where: { slug: slug },
       include: {
         organizer: { select: { id: true, name: true, email: true } },
-        ticketTypes: true,
+        ticketTypes: { where: { deletedAt: null } },
       },
     });
 
@@ -32,7 +32,7 @@ export async function GET(
         where: { id: slug },
         include: {
           organizer: { select: { id: true, name: true, email: true } },
-          ticketTypes: true,
+          ticketTypes: { where: { deletedAt: null } },
         },
       });
     }
@@ -118,7 +118,7 @@ export async function PUT(
       },
       include: {
         organizer: { select: { id: true, name: true, email: true } },
-        ticketTypes: true,
+        ticketTypes: { where: { deletedAt: null } },
       },
     });
 

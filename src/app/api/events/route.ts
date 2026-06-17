@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
             payoutAccountName: true,
           } 
         },
-        ticketTypes: true,
+        ticketTypes: { where: { deletedAt: null } },
         tags: true,
         _count: { select: { orders: true } },
       },
@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
       },
       include: {
         organizer: { select: { id: true, name: true, email: true } },
-        ticketTypes: true,
+        ticketTypes: { where: { deletedAt: null } },
         tags: true,
       },
     });

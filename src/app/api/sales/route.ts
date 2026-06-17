@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
 
     const event = await prisma.event.findUnique({
       where: { id: eventId },
-      include: { ticketTypes: true },
+      include: { ticketTypes: { where: { deletedAt: null } } },
     });
 
     if (!event) {

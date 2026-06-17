@@ -29,6 +29,7 @@ export async function GET() {
               },
             },
             ticketTypes: {
+              where: { deletedAt: null },
               select: {
                 price: true,
                 quantity: true,
