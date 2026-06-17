@@ -59,6 +59,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Ticket not found", status: "INVALID" }, { status: 404 });
     }
 
+    if (ticket.deletedAt) {
+      return NextResponse.json({ error: "Ticket has been cancelled", status: "INVALID" }, { status: 400 });
+    }
+
     const checkInCount = count ? parseInt(count) : 1;
     const remaining = ticket.groupSize - ticket.checkedInCount;
 
@@ -176,6 +180,7 @@ export async function GET(request: NextRequest) {
       where: {
         ticket: {
           ticketType: { eventId },
+          deletedAt: null,
         },
         ...(mine ? { checkedBy: user.id } : {}),
       },
@@ -193,6 +198,7 @@ export async function GET(request: NextRequest) {
 
     const totalTickets = await prisma.ticket.count({
       where: {
+        deletedAt: null,
         ticketType: { eventId },
         order: { status: "PAID" },
       },
@@ -200,6 +206,7 @@ export async function GET(request: NextRequest) {
 
     const totalAdmissions = await prisma.ticket.aggregate({
       where: {
+        deletedAt: null,
         ticketType: { eventId },
         order: { status: "PAID" },
       },

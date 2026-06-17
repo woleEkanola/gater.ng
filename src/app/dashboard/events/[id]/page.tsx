@@ -25,6 +25,16 @@ const MapLocationPicker = dynamic(
   { ssr: false }
 );
 import { Download, Users, DollarSign, Ticket, Link as LinkIcon, Image, Pencil, Globe, Tag, Trash2, Plus, Percent, HelpCircle, Eye, EyeOff, MessageCircle, AlertCircle } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const ticketTypeSchema = z.object({
   name: z.string().min(1, "Ticket name is required"),
@@ -84,6 +94,8 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
   const [inviteEmail, setInviteEmail] = useState("");
   const [invitePhone, setInvitePhone] = useState("");
   const [invitingStaff, setInvitingStaff] = useState(false);
+  const [deleteTicketTarget, setDeleteTicketTarget] = useState<any>(null);
+  const [deletingTicket, setDeletingTicket] = useState(false);
 
   useEffect(() => {
     async function fetchDiscountCodes() {
@@ -185,6 +197,26 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
       }
     } catch {
       toast({ title: "Error", description: "Failed to resend invitation", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteTicket = async () => {
+    if (!deleteTicketTarget) return;
+    setDeletingTicket(true);
+    try {
+      const res = await fetch(`/api/tickets/${deleteTicketTarget.id}`, { method: "DELETE" });
+      if (res.ok) {
+        toast({ title: "Success", description: "Ticket deleted" });
+        setAttendees(attendees.filter((a) => a.id !== deleteTicketTarget.id));
+        setDeleteTicketTarget(null);
+      } else {
+        const data = await res.json();
+        toast({ title: "Error", description: data.error || "Failed to delete", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to delete ticket", variant: "destructive" });
+    } finally {
+      setDeletingTicket(false);
     }
   };
 
@@ -2058,6 +2090,7 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
                         <th className="text-left py-2">Promo Code</th>
                         <th className="text-left py-2">Group</th>
                         <th className="text-left py-2">Status</th>
+                        <th className="text-left py-2 w-10"></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2093,6 +2126,15 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
                               <span className="text-muted-foreground">Not Used</span>
                             )}
                           </td>
+                          <td className="py-2">
+                            <button
+                              onClick={() => setDeleteTicketTarget(ticket)}
+                              className="p-1 rounded hover:bg-red-100 text-red-600"
+                              title="Delete ticket"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -2107,6 +2149,25 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
             </CardContent>
           </Card>
         </div>
+
+        <AlertDialog open={!!deleteTicketTarget} onOpenChange={(open) => !open && setDeleteTicketTarget(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Ticket</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete ticket{" "}
+                <span className="font-mono font-semibold">{deleteTicketTarget?.ticketId}</span>?
+                This action cannot be undone. The ticket will no longer be valid for check-in.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deletingTicket}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteTicket} disabled={deletingTicket}>
+                {deletingTicket ? "Deleting..." : "Delete"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
     </div>
   );

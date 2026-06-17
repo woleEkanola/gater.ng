@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
 
     const tickets = await prisma.ticket.findMany({
       where: {
+        deletedAt: null,
         order: {
           eventId: eventId,
           status: "PAID",

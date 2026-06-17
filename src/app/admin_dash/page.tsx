@@ -19,8 +19,27 @@ import {
   Star,
   Trash2,
   Pencil,
-  MoreVertical
+  MoreVertical,
+  Eye,
+  Loader2,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Stats {
   totalUsers: number;
@@ -67,6 +86,14 @@ export default function AdminDashboard() {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [eventFilter, setEventFilter] = useState("");
+  const [attendeesOpen, setAttendeesOpen] = useState(false);
+  const [attendees, setAttendees] = useState<any[]>([]);
+  const [loadingAttendees, setLoadingAttendees] = useState(false);
+  const [selectedEventTitle, setSelectedEventTitle] = useState("");
+  const [selectedEventId, setSelectedEventId] = useState("");
+  const [selectedTicketIds, setSelectedTicketIds] = useState<Set<string>>(new Set());
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deletingAttendees, setDeletingAttendees] = useState(false);
 
   useEffect(() => {
     fetchStats();
@@ -163,6 +190,70 @@ export default function AdminDashboard() {
       await fetch(`/api/admin/events/${eventId}`, { method: "DELETE" });
       fetchEvents();
     } catch {}
+  };
+
+  const openAttendees = async (eventId: string, eventTitle: string) => {
+    setSelectedEventId(eventId);
+    setSelectedEventTitle(eventTitle);
+    setSelectedTicketIds(new Set());
+    setAttendeesOpen(true);
+    setLoadingAttendees(true);
+    try {
+      const res = await fetch(`/api/attendees?eventId=${eventId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setAttendees(data);
+      }
+    } catch {
+      setAttendees([]);
+    } finally {
+      setLoadingAttendees(false);
+    }
+  };
+
+  const toggleTicketSelection = (ticketId: string) => {
+    setSelectedTicketIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(ticketId)) next.delete(ticketId);
+      else next.add(ticketId);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedTicketIds.size === attendees.length) {
+      setSelectedTicketIds(new Set());
+    } else {
+      setSelectedTicketIds(new Set(attendees.map((t) => t.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    setDeletingAttendees(true);
+    try {
+      const ticketIds = Array.from(selectedTicketIds);
+      const res = await fetch("/api/tickets/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventId: selectedEventId,
+          ticketIds: ticketIds.length === attendees.length ? undefined : ticketIds,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: "Success", description: data.message });
+        setDeleteConfirmOpen(false);
+        setAttendeesOpen(false);
+        setSelectedTicketIds(new Set());
+      } else {
+        toast({ title: "Error", description: data.error || "Failed to delete", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to delete tickets", variant: "destructive" });
+    } finally {
+      setDeletingAttendees(false);
+    }
   };
 
   const exportCSV = () => {
@@ -426,6 +517,13 @@ export default function AdminDashboard() {
                               <Star className="w-4 h-4" />
                             </button>
                             <button
+                              onClick={() => openAttendees(event.id, event.title)}
+                              className="p-2 rounded hover:bg-gray-100 text-blue-600"
+                              title="View Attendees"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            <button
                               onClick={() => handleDeleteEvent(event.id)}
                               className="p-2 rounded hover:bg-red-100 text-red-600"
                               title="Delete"
@@ -527,6 +625,105 @@ export default function AdminDashboard() {
           </div>
         )}
       </main>
+
+      <Dialog open={attendeesOpen} onOpenChange={setAttendeesOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Attendees — {selectedEventTitle}</DialogTitle>
+            <DialogDescription>
+              Select tickets to delete. Deleted tickets will no longer be valid for check-in.
+            </DialogDescription>
+          </DialogHeader>
+          {loadingAttendees ? (
+            <div className="py-8 text-center">
+              <Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" />
+            </div>
+          ) : attendees.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">No attendees found.</p>
+          ) : (
+            <>
+              <div className="flex items-center justify-between mb-2">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={selectedTicketIds.size === attendees.length && attendees.length > 0}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 rounded border-gray-300"
+                  />
+                  Select All ({attendees.length})
+                </label>
+                {selectedTicketIds.size > 0 && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setDeleteConfirmOpen(true)}
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    Delete Selected ({selectedTicketIds.size})
+                  </Button>
+                )}
+              </div>
+              <div className="max-h-[50vh] overflow-y-auto border rounded-lg">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-muted border-b">
+                    <tr>
+                      <th className="p-3 w-10"></th>
+                      <th className="p-3 text-left font-medium">Ticket ID</th>
+                      <th className="p-3 text-left font-medium">Type</th>
+                      <th className="p-3 text-left font-medium">Buyer</th>
+                      <th className="p-3 text-left font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {attendees.map((ticket: any) => (
+                      <tr key={ticket.id} className="border-b hover:bg-muted/50">
+                        <td className="p-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedTicketIds.has(ticket.id)}
+                            onChange={() => toggleTicketSelection(ticket.id)}
+                            className="w-4 h-4 rounded border-gray-300"
+                          />
+                        </td>
+                        <td className="p-3 font-mono">{ticket.ticketId}</td>
+                        <td className="p-3">{ticket.ticketType?.name}</td>
+                        <td className="p-3">{ticket.owner?.name || ticket.owner?.email || "N/A"}</td>
+                        <td className="p-3">
+                          {ticket.isUsed ? (
+                            <span className="text-green-600">Used</span>
+                          ) : ticket.checkedInCount > 0 ? (
+                            <span className="text-yellow-600">Partial</span>
+                          ) : (
+                            <span className="text-muted-foreground">Not Used</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Attendees</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedTicketIds.size === attendees.length ? "ALL" : selectedTicketIds.size} ticket(s)?
+              This action cannot be undone. The tickets will no longer be valid for check-in.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingAttendees}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} disabled={deletingAttendees}>
+              {deletingAttendees ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
