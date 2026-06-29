@@ -13,7 +13,7 @@ async function getOrganizerData(userId: string) {
   const events = await prisma.event.findMany({
     where: { organizerId: userId },
     include: {
-      ticketTypes: true,
+      ticketTypes: { where: { deletedAt: null } },
       _count: { select: { orders: true } },
     },
     orderBy: { createdAt: "desc" },

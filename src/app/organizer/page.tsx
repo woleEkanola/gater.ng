@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 async function getFeaturedEvents() {
   const events = await prisma.event.findMany({
     where: { isFeatured: true, isPublished: true, dateTime: { gte: new Date() } },
-    include: { ticketTypes: true },
+    include: { ticketTypes: { where: { deletedAt: null } } },
     orderBy: { dateTime: "asc" },
     take: 6,
   });

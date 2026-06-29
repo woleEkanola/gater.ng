@@ -25,19 +25,12 @@ const CATEGORIES = [
   { name: "Entertainment", icon: Theater },
 ];
 
-const CITIES = [
-  { name: "Lagos", image: "https://images.unsplash.com/photo-1530305408686-3009d04dc10a?w=400&h=300&fit=crop" },
-  { name: "Abuja", image: "https://images.unsplash.com/photo-1569025690938-a00729c9e1f9?w=400&h=300&fit=crop" },
-  { name: "Port Harcourt", image: "https://images.unsplash.com/photo-1579621970563-6ec7560ff3e?w=400&h=300&fit=crop" },
-  { name: "Ibadan", image: "https://images.unsplash.com/photo-1596484552834-6a58f850e0a1?w=400&h=300&fit=crop" },
-];
-
 async function getFeaturedEvents() {
   const events = await prisma.event.findMany({
     where: { isPublished: true, dateTime: { gte: new Date() } },
     include: {
       organizer: { select: { name: true } },
-      ticketTypes: true,
+      ticketTypes: { where: { deletedAt: null } },
     },
     orderBy: { dateTime: "asc" },
     take: 6,
@@ -54,7 +47,7 @@ async function getTrendingEvents() {
     where: { isPublished: true, dateTime: { gte: new Date() } },
     include: {
       organizer: { select: { name: true } },
-      ticketTypes: true,
+      ticketTypes: { where: { deletedAt: null } },
       _count: { select: { orders: true } },
     },
     orderBy: { dateTime: "asc" },
@@ -158,32 +151,6 @@ export default async function BrowsePage() {
       </section>
 
       <HomeRecommendations />
-
-      <section className="py-12">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-bold">Popular Cities</h2>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {CITIES.map((city) => (
-              <Link
-                key={city.name}
-                href={`/browse?search=${city.name}`}
-                className="group relative aspect-[4/3] rounded-lg overflow-hidden"
-              >
-                <img
-                  src={city.image}
-                  alt={city.name}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-                <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                  <span className="text-white font-semibold text-lg">{city.name}</span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {featuredEvents.length > 0 && (
         <section className="py-12 bg-primary/5">

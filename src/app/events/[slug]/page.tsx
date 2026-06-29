@@ -92,7 +92,7 @@ async function getEvent(slug: string) {
           payoutAccountName: true,
         } 
       },
-      ticketTypes: { orderBy: { price: "asc" } },
+      ticketTypes: { where: { deletedAt: null }, orderBy: { price: "asc" } },
       faqs: { orderBy: { createdAt: "asc" } },
       tags: true,
       gallery: { orderBy: { createdAt: "asc" } },
