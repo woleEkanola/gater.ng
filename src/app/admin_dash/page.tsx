@@ -21,6 +21,7 @@ import {
   Pencil,
   MoreVertical,
   Eye,
+  EyeOff,
   Loader2,
 } from "lucide-react";
 import {
@@ -253,6 +254,25 @@ export default function AdminDashboard() {
       toast({ title: "Error", description: "Failed to delete tickets", variant: "destructive" });
     } finally {
       setDeletingAttendees(false);
+    }
+  };
+
+  const handleTogglePublish = async (eventId: string, published: boolean) => {
+    try {
+      const res = await fetch(`/api/admin/events/${eventId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ published }),
+      });
+      if (res.ok) {
+        toast({ title: published ? "Event published" : "Event unpublished" });
+        fetchEvents();
+      } else {
+        const err = await res.json();
+        toast({ title: "Error", description: err.error || "Failed", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Network error", variant: "destructive" });
     }
   };
 
@@ -522,6 +542,13 @@ export default function AdminDashboard() {
                               title="View Attendees"
                             >
                               <Eye className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleTogglePublish(event.id, !event.isPublished)}
+                              className={`p-2 rounded hover:bg-gray-100 ${event.isPublished ? "text-amber-600" : "text-green-600"}`}
+                              title={event.isPublished ? "Unpublish" : "Publish"}
+                            >
+                              <EyeOff className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleDeleteEvent(event.id)}

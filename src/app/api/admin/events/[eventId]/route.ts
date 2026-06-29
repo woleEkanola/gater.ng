@@ -90,11 +90,15 @@ export async function PATCH(
       return NextResponse.json({ error: "Admin only" }, { status: 403 });
     }
 
-    const { featured } = await request.json();
+    const { featured, published } = await request.json();
+
+    const data: any = {};
+    if (featured !== undefined) data.isFeatured = featured;
+    if (published !== undefined) data.isPublished = published;
 
     await prisma.event.update({
       where: { id: eventId },
-      data: { isFeatured: featured },
+      data,
     });
 
     return NextResponse.json({ success: true });

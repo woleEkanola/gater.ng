@@ -98,6 +98,7 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
   const [deletingTicket, setDeletingTicket] = useState(false);
   const [deleteTypeTarget, setDeleteTypeTarget] = useState<any>(null);
   const [deletingType, setDeletingType] = useState(false);
+  const [publishing, setPublishing] = useState(false);
 
   useEffect(() => {
     async function fetchDiscountCodes() {
@@ -239,6 +240,29 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
       toast({ title: "Error", description: "Failed to delete ticket type", variant: "destructive" });
     } finally {
       setDeletingType(false);
+    }
+  };
+
+  const handleTogglePublish = async () => {
+    setPublishing(true);
+    const newPublished = !event.isPublished;
+    try {
+      const res = await fetch(`/api/events/${eventId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isPublished: newPublished }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setEvent({ ...event, isPublished: newPublished });
+        toast({ title: "Success", description: newPublished ? "Event published" : "Event unpublished" });
+      } else {
+        toast({ title: "Error", description: data.error || "Failed to update", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to toggle publish", variant: "destructive" });
+    } finally {
+      setPublishing(false);
     }
   };
 
@@ -1075,9 +1099,21 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
                     <p className="text-muted-foreground">{event.description}</p>
                   )}
                 </div>
-                <Button variant="ghost" size="icon" onClick={startEditingDetails}>
-                  <Pencil className="w-4 h-4" />
-                </Button>
+                <div className="flex items-center gap-2">
+                  {event && (
+                    <Button
+                      variant={event.isPublished ? "destructive" : "default"}
+                      size="sm"
+                      onClick={handleTogglePublish}
+                      disabled={publishing}
+                    >
+                      {publishing ? "..." : event.isPublished ? "Unpublish" : "Publish"}
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="icon" onClick={startEditingDetails}>
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
               {event?.dateTime && (
                 <p className="text-muted-foreground">
