@@ -250,11 +250,15 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
       const res = await fetch(`/api/events/${eventId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isPublished: newPublished }),
+        body: JSON.stringify({
+          title: event.title,
+          dateTime: event.dateTime,
+          isPublished: newPublished,
+        }),
       });
       const data = await res.json();
       if (res.ok) {
-        setEvent({ ...event, isPublished: newPublished });
+        setEvent(data);
         toast({ title: "Success", description: newPublished ? "Event published" : "Event unpublished" });
       } else {
         toast({ title: "Error", description: data.error || "Failed to update", variant: "destructive" });
@@ -678,6 +682,14 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
   };
 
   const saveEventDetails = async () => {
+    if (!editedTitle.trim()) {
+      toast({ title: "Error", description: "Title is required", variant: "destructive" });
+      return;
+    }
+    if (!editedDateTime) {
+      toast({ title: "Error", description: "Date and time are required", variant: "destructive" });
+      return;
+    }
     setSavingDetails(true);
     try {
       const res = await fetch(`/api/events/${eventId}`, {
