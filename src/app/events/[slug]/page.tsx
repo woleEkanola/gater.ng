@@ -316,7 +316,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
             </div>
 
             <div className="space-y-6">
-              <Card className="sticky top-4">
+              <Card className="lg:sticky top-4">
                 <CardHeader>
                   <CardTitle>Tickets</CardTitle>
                 </CardHeader>
