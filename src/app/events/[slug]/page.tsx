@@ -347,16 +347,9 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
                           )}
                           <div>
                             <p className="font-medium">{ticketType.name}</p>
-                  {session?.user ? (
+                  {session?.user && (
                     <p className="text-sm text-muted-foreground">
                       {ticketType.quantity - ticketType.soldCount} remaining
-                    </p>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      <Link href="/auth-route/login" className="underline hover:text-foreground">
-                        Log in
-                      </Link>{" "}
-                      to see tickets remaining
                     </p>
                   )}
                           </div>
