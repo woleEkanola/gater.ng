@@ -23,6 +23,7 @@ import {
   Eye,
   EyeOff,
   Loader2,
+  RotateCcw,
 } from "lucide-react";
 import {
   Dialog,
@@ -95,6 +96,9 @@ export default function AdminDashboard() {
   const [selectedTicketIds, setSelectedTicketIds] = useState<Set<string>>(new Set());
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deletingAttendees, setDeletingAttendees] = useState(false);
+  const [resetSalesOpen, setResetSalesOpen] = useState(false);
+  const [resettingSales, setResettingSales] = useState(false);
+  const [resetEventId, setResetEventId] = useState("");
 
   useEffect(() => {
     fetchStats();
@@ -273,6 +277,31 @@ export default function AdminDashboard() {
       }
     } catch {
       toast({ title: "Error", description: "Network error", variant: "destructive" });
+    }
+  };
+
+  const handleResetSales = async () => {
+    if (!resetEventId) return;
+    setResettingSales(true);
+    try {
+      const res = await fetch(`/api/admin/events/${resetEventId}/reset-sales`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ 
+          title: "Sales reset", 
+          description: `Deleted ${data.deleted.orders} orders, ${data.deleted.tickets} tickets, ${data.deleted.checkIns} check-ins. Reset ${data.reset.ticketTypes} ticket types.`,
+        });
+        setResetSalesOpen(false);
+        fetchEvents();
+      } else {
+        toast({ title: "Error", description: data.error || "Failed to reset sales", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to reset sales", variant: "destructive" });
+    } finally {
+      setResettingSales(false);
     }
   };
 
@@ -551,6 +580,13 @@ export default function AdminDashboard() {
                               <EyeOff className="w-4 h-4" />
                             </button>
                             <button
+                              onClick={() => { setResetEventId(event.id); setResetSalesOpen(true); }}
+                              className="p-2 rounded hover:bg-gray-100 text-orange-600"
+                              title="Reset Sales"
+                            >
+                              <RotateCcw className="w-4 h-4" />
+                            </button>
+                            <button
                               onClick={() => handleDeleteEvent(event.id)}
                               className="p-2 rounded hover:bg-red-100 text-red-600"
                               title="Delete"
@@ -747,6 +783,25 @@ export default function AdminDashboard() {
             <AlertDialogCancel disabled={deletingAttendees}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleBulkDelete} disabled={deletingAttendees}>
               {deletingAttendees ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={resetSalesOpen} onOpenChange={setResetSalesOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset Sales Records</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete all orders, tickets, and check-ins for this event.
+              Ticket types will be preserved but sold counts will reset to zero.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={resettingSales}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleResetSales} disabled={resettingSales} className="bg-orange-600 hover:bg-orange-700">
+              {resettingSales ? "Resetting..." : "Reset Sales"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
