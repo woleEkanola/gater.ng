@@ -23,7 +23,7 @@ async function createPaystackSubaccount(
         business_name: businessName,
         settlement_bank: bankCode,
         account_number: accountNumber,
-        percentage_charge: 0,
+        percentage_charge: 95,
       }),
     });
 

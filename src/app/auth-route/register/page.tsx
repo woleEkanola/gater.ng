@@ -1,20 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
+import { Mail } from "lucide-react";
 
 export default function RegisterPage() {
-  const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({ name: "", email: "", password: "", confirmPassword: "" });
+  const [verificationSent, setVerificationSent] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,24 +45,66 @@ export default function RegisterPage() {
         return;
       }
 
-      const signInResult = await signIn("credentials", {
-        email: formData.email,
-        password: formData.password,
-        redirect: false,
-      });
-
-      if (signInResult?.error) {
-        toast({ title: "Error", description: "Account created but could not sign in", variant: "destructive" });
-      } else {
-        router.push("/dashboard");
-        router.refresh();
-      }
+      setRegisteredEmail(formData.email);
+      setVerificationSent(true);
     } catch {
       toast({ title: "Error", description: "Something went wrong", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
   };
+
+  const handleResendVerification = async () => {
+    try {
+      const res = await fetch("/api/auth/verify-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: registeredEmail }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: "Success", description: "Verification email resent" });
+      } else {
+        toast({ title: "Error", description: data.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to resend", variant: "destructive" });
+    }
+  };
+
+  if (verificationSent) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-primary/10 to-background p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="space-y-1">
+            <div className="flex justify-center mb-2">
+              <Mail className="w-12 h-12 text-primary" />
+            </div>
+            <CardTitle className="text-2xl text-center">Check your email</CardTitle>
+            <CardDescription className="text-center">
+              We sent a verification link to <strong>{registeredEmail}</strong>
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-center space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Click the link in the email to verify your account. You won&apos;t be able to sign in until your email is verified.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Didn&apos;t receive the email? Check your spam folder or
+            </p>
+            <Button variant="outline" onClick={handleResendVerification} className="w-full">
+              Resend verification email
+            </Button>
+            <p className="text-sm">
+              <Link href="/auth-route/login" className="text-primary hover:underline">
+                Back to sign in
+              </Link>
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-primary/10 to-background p-4">

@@ -57,6 +57,10 @@ interface User {
   name: string | null;
   role: string;
   createdAt: string;
+  payoutBankCode?: string | null;
+  payoutAccountNumber?: string | null;
+  payoutAccountName?: string | null;
+  paystackSubaccountCode?: string | null;
 }
 
 interface Event {
@@ -463,6 +467,7 @@ export default function AdminDashboard() {
                       <th className="p-4 font-medium">Name</th>
                       <th className="p-4 font-medium">Email</th>
                       <th className="p-4 font-medium">Role</th>
+                      <th className="p-4 font-medium">Payout</th>
                       <th className="p-4 font-medium">Joined</th>
                       <th className="p-4 font-medium">Actions</th>
                     </tr>
@@ -474,6 +479,13 @@ export default function AdminDashboard() {
                         <td className="p-4">{user.email}</td>
                         <td className="p-4">
                           <span className="px-2 py-1 bg-gray-100 rounded text-sm">{user.role}</span>
+                        </td>
+                        <td className="p-4">
+                          {user.payoutBankCode && user.payoutAccountNumber && user.payoutAccountName ? (
+                            <span className="text-green-600 text-sm font-medium">✅ Setup</span>
+                          ) : (
+                            <span className="text-red-400 text-sm">✗ Not set</span>
+                          )}
                         </td>
                         <td className="p-4 text-muted-foreground">{formatDate(user.createdAt)}</td>
                         <td className="p-4">
