@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { generateQRCode, generateTicketId } from "@/lib/qr";
-import { sendTicketEmail } from "@/lib/email";
+import { sendTicketEmail, sendOrganizerSaleNotification } from "@/lib/email";
 import { normalizePhone } from "@/lib/whatsapp-messages";
 
 export async function POST(request: NextRequest) {
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     console.log("[API /orders] POST - querying event by id:", eventId);
     const event = await prisma.event.findUnique({
       where: { id: eventId },
-      include: { ticketTypes: { where: { deletedAt: null } }, organizer: { select: { name: true, image: true } } },
+      include: { ticketTypes: { where: { deletedAt: null } }, organizer: { select: { name: true, image: true, email: true } } },
     });
 
     if (!event) {
@@ -192,6 +192,22 @@ export async function POST(request: NextRequest) {
               eventId: event.id,
               organizerId: event.organizerId,
             });
+          }
+        }
+
+        if (event.organizer?.email) {
+          for (const item of orderItems) {
+            const ticketType = event.ticketTypes.find((tt) => tt.id === item.ticketTypeId);
+            sendOrganizerSaleNotification({
+              organizerEmail: event.organizer.email,
+              organizerName: event.organizer.name || "Organizer",
+              eventTitle: event.title,
+              buyerName: name || email || "Customer",
+              buyerEmail: email || "N/A",
+              ticketType: ticketType?.name || "General",
+              quantity: item.quantity,
+              amount: "0",
+            }).catch((err) => console.error("Failed to send organizer notification:", err));
           }
         }
       }

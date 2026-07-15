@@ -410,3 +410,112 @@ export async function sendCheckinOtpEmail(email: string, otp: string) {
     return { success: false, error };
   }
 }
+
+interface OrganizerSaleEmailData {
+  organizerEmail: string;
+  organizerName: string;
+  eventTitle: string;
+  buyerName: string;
+  buyerEmail: string;
+  ticketType: string;
+  quantity: number;
+  amount: string;
+}
+
+export async function sendOrganizerSaleNotification(data: OrganizerSaleEmailData) {
+  const {
+    organizerEmail,
+    organizerName,
+    eventTitle,
+    buyerName,
+    buyerEmail,
+    ticketType,
+    quantity,
+    amount,
+  } = data;
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+</head>
+<body style="font-family: Arial, sans-serif; background-color: #f3f4f6; margin: 0; padding: 0;">
+  <div style="max-width: 480px; margin: 0 auto; padding: 20px;">
+    <div style="text-align: center; margin-bottom: 24px;">
+      <h1 style="color: #e11d48; font-size: 24px; margin: 0;">Hitix</h1>
+    </div>
+
+    <div style="background-color: #ffffff; border-radius: 12px; padding: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+      <h2 style="color: #1f2937; font-size: 20px; margin: 0 0 16px 0;">
+        🎟️ New Sale
+      </h2>
+
+      <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
+        Hi ${organizerName},
+      </p>
+
+      <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
+        Someone just purchased tickets for <strong>${eventTitle}</strong>.
+      </p>
+
+      <div style="background-color: #f9fafb; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 6px 0; color: #6b7280; font-size: 14px;">Buyer</td>
+            <td style="padding: 6px 0; color: #1f2937; font-size: 14px; text-align: right;">${buyerName} (${buyerEmail})</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #6b7280; font-size: 14px;">Ticket Type</td>
+            <td style="padding: 6px 0; color: #1f2937; font-size: 14px; text-align: right;">${ticketType}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #6b7280; font-size: 14px;">Quantity</td>
+            <td style="padding: 6px 0; color: #1f2937; font-size: 14px; text-align: right;">${quantity}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #6b7280; font-size: 14px;">Amount</td>
+            <td style="padding: 6px 0; color: #e11d48; font-size: 14px; font-weight: bold; text-align: right;">₦${amount}</td>
+          </tr>
+        </table>
+      </div>
+
+      <p style="color: #6b7280; font-size: 14px; margin: 0 0 24px 0;">
+        View your dashboard to see all sales and attendee details.
+      </p>
+
+      <div style="text-align: center;">
+        <a href="https://hitix.online/dashboard" style="display: inline-block; background-color: #e11d48; color: #ffffff; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 600;">
+          View Dashboard
+        </a>
+      </div>
+    </div>
+
+    <div style="text-align: center; padding: 20px 0; color: #9ca3af; font-size: 12px;">
+      <p style="margin: 0 0 8px 0;">
+        This is an automated notification. Please do not reply to this email.
+      </p>
+      <p style="margin: 0;">
+        © ${new Date().getFullYear()} Hitix - All rights reserved
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+`;
+
+  try {
+    const result = await resend.emails.send({
+      from: "Hitix <notifications@hitix.online>",
+      to: organizerEmail,
+      subject: `🎟️ New Sale — ${eventTitle}`,
+      html: htmlContent,
+    });
+
+    console.log(`[Email] Organizer sale notification sent to ${organizerEmail}: ${result.data?.id || "OK"}`);
+    return { success: true, data: result };
+  } catch (error) {
+    console.error("Error sending organizer sale notification:", error);
+    return { success: false, error };
+  }
+}

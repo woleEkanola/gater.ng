@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import prisma from "@/lib/prisma";
 import { generateQRCode, generateTicketId } from "@/lib/qr";
-import { sendTicketEmail } from "@/lib/email";
+import { sendTicketEmail, sendOrganizerSaleNotification } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
 
       const order = await prisma.order.findUnique({
         where: { id: orderId },
-        include: { event: { include: { ticketTypes: true } } },
+        include: { event: { include: { ticketTypes: true, organizer: { select: { name: true, email: true } } } } },
       });
 
       if (!order) {
@@ -127,6 +127,22 @@ export async function POST(request: NextRequest) {
           });
         }
         console.log(`Sent ${tickets.length} ticket emails for order ${orderId}`);
+
+        if (order.event.organizer?.email) {
+          for (const td of ticketData) {
+            const tt = order.event.ticketTypes.find((t: any) => t.id === td.ticketTypeId);
+            sendOrganizerSaleNotification({
+              organizerEmail: order.event.organizer.email,
+              organizerName: order.event.organizer.name || "Organizer",
+              eventTitle: order.event.title,
+              buyerName: buyer.name || buyer.email.split("@")[0],
+              buyerEmail: buyer.email,
+              ticketType: tt?.name || "General",
+              quantity: td.quantity,
+              amount: tt ? ((tt.price * td.quantity) / 100).toFixed(0) : "0",
+            }).catch((err) => console.error("Failed to send organizer notification:", err));
+          }
+        }
       }
     }
 
