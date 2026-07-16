@@ -99,6 +99,10 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
   const [deleteTypeTarget, setDeleteTypeTarget] = useState<any>(null);
   const [deletingType, setDeletingType] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [attendeeSearch, setAttendeeSearch] = useState("");
+  const [attendeePage, setAttendeePage] = useState(1);
+  const [attendeeTotal, setAttendeeTotal] = useState(0);
+  const [attendeeTotalPages, setAttendeeTotalPages] = useState(1);
 
   useEffect(() => {
     async function fetchDiscountCodes() {
@@ -211,6 +215,7 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
       if (res.ok) {
         toast({ title: "Success", description: "Ticket deleted" });
         setAttendees(attendees.filter((a) => a.id !== deleteTicketTarget.id));
+        setAttendeeTotal((t) => t - 1);
         setDeleteTicketTarget(null);
       } else {
         const data = await res.json();
@@ -800,7 +805,9 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
         const attendeesData = await attendeesRes.json();
         setEvent(eventData);
         setTicketTypes(typesData);
-        setAttendees(attendeesData);
+        setAttendees(attendeesData.tickets || attendeesData);
+        setAttendeeTotal(attendeesData.total || (attendeesData.tickets || attendeesData).length);
+        setAttendeeTotalPages(attendeesData.totalPages || 1);
       } catch (error) {
         console.error("Error loading data:", error);
       } finally {
@@ -813,15 +820,22 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
   useEffect(() => {
     async function fetchFilteredAttendees() {
       if (!eventId) return;
-      const url = `/api/attendees?eventId=${eventId}${selectedPromoCode !== "ALL" ? `&discountCode=${selectedPromoCode}` : ""}`;
-      const res = await fetch(url);
+      const params = new URLSearchParams();
+      params.set("eventId", eventId);
+      if (selectedPromoCode !== "ALL") params.set("discountCode", selectedPromoCode);
+      if (attendeeSearch) params.set("search", attendeeSearch);
+      params.set("page", attendeePage.toString());
+      params.set("limit", "20");
+      const res = await fetch(`/api/attendees?${params}`);
       if (res.ok) {
         const data = await res.json();
-        setAttendees(data);
+        setAttendees(data.tickets || data);
+        setAttendeeTotal(data.total || (data.tickets || data).length);
+        setAttendeeTotalPages(data.totalPages || 1);
       }
     }
     fetchFilteredAttendees();
-  }, [eventId, selectedPromoCode]);
+  }, [eventId, selectedPromoCode, attendeeSearch, attendeePage]);
 
   const onSubmitTicketType = async (data: TicketTypeFormData) => {
     setIsLoading(true);
@@ -914,7 +928,7 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
       
       const attendeesRes = await fetch(`/api/attendees?eventId=${eventId}`);
       const attendeesData = await attendeesRes.json();
-      setAttendees(attendeesData);
+      setAttendees(attendeesData.tickets || attendeesData);
     } catch {
       toast({ title: "Error", description: "Something went wrong", variant: "destructive" });
     } finally {
@@ -2130,11 +2144,11 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
 
           <Card className="lg:col-span-2">
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Attendees ({attendees.length})</CardTitle>
+              <CardTitle>Attendees ({attendeeTotal})</CardTitle>
               <div className="flex items-center gap-2">
                 <select
                   value={selectedPromoCode}
-                  onChange={(e) => setSelectedPromoCode(e.target.value)}
+                  onChange={(e) => { setSelectedPromoCode(e.target.value); setAttendeePage(1); }}
                   className="border rounded-md px-3 py-2 text-sm"
                 >
                   <option value="ALL">All Promo Codes</option>
@@ -2155,6 +2169,14 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
               </div>
             </CardHeader>
             <CardContent>
+              <div className="mb-4">
+                <Input
+                  placeholder="Search by ticket ID, name, or email..."
+                  value={attendeeSearch}
+                  onChange={(e) => { setAttendeeSearch(e.target.value); setAttendeePage(1); }}
+                  className="max-w-sm"
+                />
+              </div>
               {loadingData ? (
                 <p className="text-muted-foreground">Loading...</p>
               ) : attendees.length === 0 ? (
@@ -2165,45 +2187,49 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
                     <thead>
                       <tr className="border-b">
                         <th className="text-left py-2">Ticket ID</th>
+                        <th className="text-left py-2">Buyer</th>
+                        <th className="text-left py-2">Phone</th>
                         <th className="text-left py-2">Type</th>
-                        <th className="text-left py-2">Email</th>
-                        <th className="text-left py-2">Promo Code</th>
                         <th className="text-left py-2">Group</th>
+                        <th className="text-left py-2">Amount</th>
+                        <th className="text-left py-2">Date</th>
                         <th className="text-left py-2">Status</th>
                         <th className="text-left py-2 w-10"></th>
                       </tr>
                     </thead>
                     <tbody>
-                      {attendees.slice(0, 10).map((ticket) => (
+                      {attendees.map((ticket: any) => (
                         <tr key={ticket.id} className="border-b">
-                          <td className="py-2 font-mono">{ticket.ticketId}</td>
-                          <td className="py-2">{ticket.ticketType?.name}</td>
-                          <td className="py-2">{ticket.owner?.email || "Guest"}</td>
+                          <td className="py-2 font-mono text-xs">{ticket.ticketId}</td>
                           <td className="py-2">
-                            {ticket.order?.discountCode ? (
-                              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                                {ticket.order.discountCode}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )}
+                            <span className="font-medium">{ticket.order?.buyerName || ticket.owner?.name || "Guest"}</span>
+                            <br />
+                            <span className="text-xs text-muted-foreground">{ticket.order?.buyerEmail || ticket.owner?.email || "—"}</span>
                           </td>
+                          <td className="py-2 text-sm">{ticket.order?.buyerPhone || "—"}</td>
+                          <td className="py-2">{ticket.ticketType?.name}</td>
                           <td className="py-2">
                             {ticket.groupSize > 1 ? (
                               <span className="text-sm">
-                                {ticket.checkedInCount || 0}/{ticket.groupSize} checked in
+                                {ticket.checkedInCount || 0}/{ticket.groupSize}
                               </span>
                             ) : (
                               <span className="text-muted-foreground">—</span>
                             )}
                           </td>
+                          <td className="py-2 text-sm">
+                            {ticket.order?.amount ? `₦${(ticket.order.amount / 100).toLocaleString()}` : "—"}
+                          </td>
+                          <td className="py-2 text-xs text-muted-foreground">
+                            {ticket.order?.paidAt ? new Date(ticket.order.paidAt).toLocaleDateString() : "—"}
+                          </td>
                           <td className="py-2">
                             {ticket.isUsed ? (
-                              <span className="text-green-600">Used</span>
+                              <span className="text-green-600 text-xs">Used</span>
                             ) : ticket.checkedInCount > 0 ? (
-                              <span className="text-yellow-600">Partial</span>
+                              <span className="text-yellow-600 text-xs">Partial</span>
                             ) : (
-                              <span className="text-muted-foreground">Not Used</span>
+                              <span className="text-muted-foreground text-xs">Not Used</span>
                             )}
                           </td>
                           <td className="py-2">
@@ -2219,10 +2245,30 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
                       ))}
                     </tbody>
                   </table>
-                  {attendees.length > 10 && (
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Showing 10 of {attendees.length} attendees. Export CSV for full list.
-                    </p>
+                  {attendeeTotalPages > 1 && (
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                      <p className="text-sm text-muted-foreground">
+                        Page {attendeePage} of {attendeeTotalPages} ({attendeeTotal} total)
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setAttendeePage((p) => Math.max(1, p - 1))}
+                          disabled={attendeePage <= 1}
+                        >
+                          Previous
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setAttendeePage((p) => p + 1)}
+                          disabled={attendeePage >= attendeeTotalPages}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
