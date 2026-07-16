@@ -146,6 +146,45 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    if (eventType === "transfer.success") {
+      const { reference, amount, recipient, createdAt } = data;
+
+      if (!recipient?.details?.account_number) {
+        return NextResponse.json({ message: "No account details in transfer webhook" });
+      }
+
+      const user = await prisma.user.findFirst({
+        where: {
+          payoutAccountNumber: recipient.details.account_number,
+        },
+      });
+
+      if (!user) {
+        console.log(`[Webhook] transfer.success: no user found for account ${recipient.details.account_number}`);
+        return NextResponse.json({ message: "No matching user" });
+      }
+
+      const existing = await prisma.payoutRecord.findUnique({
+        where: { reference },
+      });
+
+      if (existing) {
+        return NextResponse.json({ message: "Payout already recorded" });
+      }
+
+      await prisma.payoutRecord.create({
+        data: {
+          userId: user.id,
+          amount,
+          reference,
+          status: "success",
+          paidAt: createdAt ? new Date(createdAt) : new Date(),
+        },
+      });
+
+      console.log(`[Webhook] Recorded payout: ₦${(amount / 100).toFixed(0)} to ${user.email}`);
+    }
+
     return NextResponse.json({ message: "Webhook processed" });
   } catch (error) {
     console.error("Webhook error:", error);

@@ -67,6 +67,7 @@ model User {
   orders        Order[]
   tickets       Ticket[]
   checkIns      CheckIn[]
+  payoutRecords PayoutRecord[]
   
   following     Follow[]  @relation("Following")
   followers     Follow[]  @relation("Follower")
@@ -380,4 +381,18 @@ model B2BLandingPage {
   @@index([slug])
   @@index([targetAudience])
   @@index([intent])
+}
+
+model PayoutRecord {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  amount    Int
+  reference String    @unique
+  status    String    @default("success")
+  paidAt    DateTime
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([paidAt])
 }
