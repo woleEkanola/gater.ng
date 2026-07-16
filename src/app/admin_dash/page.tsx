@@ -110,6 +110,25 @@ export default function AdminDashboard() {
   const [settlementTotal, setSettlementTotal] = useState(0);
   const [settlementTotalPages, setSettlementTotalPages] = useState(1);
   const [loadingSettlements, setLoadingSettlements] = useState(false);
+  const [syncingAll, setSyncingAll] = useState(false);
+
+  const handleSyncAll = async () => {
+    setSyncingAll(true);
+    try {
+      const res = await fetch("/api/admin/settlements/sync", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: "Sync complete", description: `${data.newRecords} new payout record(s) from ${data.totalTransfersChecked} transfers` });
+        fetchSettlements();
+      } else {
+        toast({ title: "Error", description: data.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Sync failed", variant: "destructive" });
+    } finally {
+      setSyncingAll(false);
+    }
+  };
 
   useEffect(() => {
     fetchStats();
@@ -740,6 +759,10 @@ export default function AdminDashboard() {
                   className="pl-10"
                 />
               </div>
+              <Button variant="outline" size="sm" onClick={handleSyncAll} disabled={syncingAll}>
+                <RotateCcw className={`w-4 h-4 mr-1 ${syncingAll ? "animate-spin" : ""}`} />
+                {syncingAll ? "Syncing..." : "Sync All Payouts"}
+              </Button>
             </div>
 
             <Card>
