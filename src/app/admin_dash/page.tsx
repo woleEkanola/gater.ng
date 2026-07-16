@@ -24,6 +24,7 @@ import {
   EyeOff,
   Loader2,
   RotateCcw,
+  Banknote,
 } from "lucide-react";
 import {
   Dialog,
@@ -83,7 +84,7 @@ interface Transaction {
 
 export default function AdminDashboard() {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<"overview" | "users" | "events" | "financials" | "reports">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "users" | "events" | "financials" | "reports" | "settlements">("overview");
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<Stats | null>(null);
   const [users, setUsers] = useState<User[]>([]);
@@ -103,18 +104,26 @@ export default function AdminDashboard() {
   const [resetSalesOpen, setResetSalesOpen] = useState(false);
   const [resettingSales, setResettingSales] = useState(false);
   const [resetEventId, setResetEventId] = useState("");
+  const [settlements, setSettlements] = useState<any[]>([]);
+  const [settlementSearch, setSettlementSearch] = useState("");
+  const [settlementPage, setSettlementPage] = useState(1);
+  const [settlementTotal, setSettlementTotal] = useState(0);
+  const [settlementTotalPages, setSettlementTotalPages] = useState(1);
+  const [loadingSettlements, setLoadingSettlements] = useState(false);
 
   useEffect(() => {
     fetchStats();
     if (activeTab === "users") fetchUsers();
     if (activeTab === "events") fetchEvents();
     if (activeTab === "financials") fetchTransactions();
+    if (activeTab === "settlements") fetchSettlements();
   }, [activeTab]);
 
   useEffect(() => {
     if (activeTab === "users") fetchUsers();
     if (activeTab === "events") fetchEvents();
-  }, [search, roleFilter, eventFilter]);
+    if (activeTab === "settlements") fetchSettlements();
+  }, [search, roleFilter, eventFilter, settlementSearch, settlementPage]);
 
   const fetchStats = async () => {
     try {
@@ -323,6 +332,24 @@ export default function AdminDashboard() {
     a.click();
   };
 
+  const fetchSettlements = async () => {
+    setLoadingSettlements(true);
+    try {
+      const params = new URLSearchParams();
+      if (settlementSearch) params.set("search", settlementSearch);
+      params.set("page", settlementPage.toString());
+      params.set("limit", "20");
+      const res = await fetch(`/api/admin/settlements?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSettlements(data.payouts);
+        setSettlementTotal(data.total);
+        setSettlementTotalPages(data.totalPages);
+      }
+    } catch {}
+    setLoadingSettlements(false);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -354,6 +381,7 @@ export default function AdminDashboard() {
             { id: "users", label: "Users", icon: Users },
             { id: "events", label: "Events", icon: Calendar },
             { id: "financials", label: "Financials", icon: DollarSign },
+            { id: "settlements", label: "Settlements", icon: Banknote },
             { id: "reports", label: "Reports", icon: Download },
           ].map((tab) => (
             <button
@@ -695,6 +723,87 @@ export default function AdminDashboard() {
                     </div>
                   ))}
                 </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {activeTab === "settlements" && (
+          <div className="space-y-4">
+            <div className="flex gap-4 flex-wrap">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  placeholder="Search by organizer name or email..."
+                  value={settlementSearch}
+                  onChange={(e) => { setSettlementSearch(e.target.value); setSettlementPage(1); }}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            <Card>
+              <CardContent className="p-0">
+                {loadingSettlements ? (
+                  <div className="py-8 text-center">
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" />
+                  </div>
+                ) : settlements.length === 0 ? (
+                  <p className="p-8 text-center text-muted-foreground">No settlements found.</p>
+                ) : (
+                  <>
+                    <table className="w-full">
+                      <thead className="border-b">
+                        <tr className="text-left">
+                          <th className="p-4 font-medium">Organizer</th>
+                          <th className="p-4 font-medium">Amount</th>
+                          <th className="p-4 font-medium">Date</th>
+                          <th className="p-4 font-medium">Reference</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {settlements.map((s: any) => (
+                          <tr key={s.id} className="border-b">
+                            <td className="p-4">
+                              <p className="font-medium">{s.organizer.name}</p>
+                              <p className="text-sm text-muted-foreground">{s.organizer.email}</p>
+                            </td>
+                            <td className="p-4 font-medium">₦{(s.amount / 100).toLocaleString()}</td>
+                            <td className="p-4 text-muted-foreground">
+                              {new Date(s.paidAt).toLocaleDateString()}
+                            </td>
+                            <td className="p-4 text-sm text-muted-foreground font-mono">{s.reference}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {settlementTotalPages > 1 && (
+                      <div className="flex items-center justify-between p-4 border-t">
+                        <p className="text-sm text-muted-foreground">
+                          Page {settlementPage} of {settlementTotalPages} ({settlementTotal} total)
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSettlementPage((p) => Math.max(1, p - 1))}
+                            disabled={settlementPage <= 1}
+                          >
+                            Previous
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSettlementPage((p) => p + 1)}
+                            disabled={settlementPage >= settlementTotalPages}
+                          >
+                            Next
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
               </CardContent>
             </Card>
           </div>
