@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { BankSelect } from "@/components/ui/bank-select";
-import { Building2, ChevronLeft, MessageCircle, Clock, CheckCircle, DollarSign } from "lucide-react";
+import { Building2, ChevronLeft, MessageCircle, Clock, CheckCircle, DollarSign, RefreshCw } from "lucide-react";
 
 const payoutSchema = z.object({
   payoutBankCode: z.string().min(3, "Bank code required"),
@@ -29,6 +29,26 @@ export default function PayoutSettingsPage() {
   const [selectedBankName, setSelectedBankName] = useState("");
   const [payoutHistory, setPayoutHistory] = useState<any>(null);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const res = await fetch("/api/payout/sync", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: "Sync complete", description: `${data.newRecords} new payout record(s) found` });
+        const historyRes = await fetch("/api/payout/history");
+        if (historyRes.ok) setPayoutHistory(await historyRes.json());
+      } else {
+        toast({ title: "Error", description: data.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Sync failed", variant: "destructive" });
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const {
     register,
@@ -177,10 +197,16 @@ export default function PayoutSettingsPage() {
         </form>
 
         <div className="mt-8 space-y-6">
-          <h2 className="text-lg font-bold flex items-center gap-2">
-            <DollarSign className="w-5 h-5" />
-            Payout History
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <DollarSign className="w-5 h-5" />
+              Payout History
+            </h2>
+            <Button variant="outline" size="sm" onClick={handleSync} disabled={syncing}>
+              <RefreshCw className={`w-4 h-4 mr-1 ${syncing ? "animate-spin" : ""}`} />
+              {syncing ? "Syncing..." : "Sync from Paystack"}
+            </Button>
+          </div>
 
           {loadingHistory ? (
             <p className="text-muted-foreground text-sm">Loading...</p>
