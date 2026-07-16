@@ -23,43 +23,91 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "20");
 
-    const where: any = {};
+    const userWhere: any = {
+      role: "ORGANIZER",
+      events: { some: { orders: { some: { status: "PAID" } } } },
+    };
 
     if (search) {
-      where.user = {
-        OR: [
-          { name: { contains: search } },
-          { email: { contains: search } },
-        ],
-      };
+      userWhere.OR = [
+        { name: { contains: search } },
+        { email: { contains: search } },
+      ];
     }
 
-    const [payouts, total] = await Promise.all([
-      prisma.payoutRecord.findMany({
-        where,
-        include: {
-          user: { select: { id: true, name: true, email: true } },
+    const [organizers, total] = await Promise.all([
+      prisma.user.findMany({
+        where: userWhere,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          transactionFeePercent: true,
+          payoutBankCode: true,
+          payoutAccountNumber: true,
+          payoutAccountName: true,
+          paystackSubaccountCode: true,
+          _count: { select: { events: { where: { orders: { some: { status: "PAID" } } } } } },
+          events: {
+            select: {
+              orders: {
+                where: { status: "PAID" },
+                select: { amount: true },
+              },
+            },
+          },
+          payoutRecords: {
+            orderBy: { paidAt: "desc" },
+            select: {
+              id: true,
+              amount: true,
+              reference: true,
+              paidAt: true,
+            },
+          },
         },
-        orderBy: { paidAt: "desc" },
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.payoutRecord.count({ where }),
+      prisma.user.count({ where: userWhere }),
     ]);
 
+    const rows = organizers.map((o) => {
+      const totalRevenueKobo = o.events.reduce(
+        (sum, e) => sum + e.orders.reduce((s, ord) => s + ord.amount, 0),
+        0
+      );
+      const feePercent = o.transactionFeePercent || 5;
+      const totalRevenue = Math.round(totalRevenueKobo / 100);
+      const expectedSettlement = Math.round(totalRevenue * ((100 - feePercent) / 100));
+      const actualSettled = Math.round(
+        o.payoutRecords.reduce((sum, pr) => sum + pr.amount, 0) / 100
+      );
+
+      return {
+        id: o.id,
+        name: o.name || o.email,
+        email: o.email,
+        totalRevenue,
+        feePercent,
+        expectedSettlement,
+        actualSettled,
+        pending: Math.max(0, expectedSettlement - actualSettled),
+        hasBankSetup: !!(o.payoutBankCode && o.payoutAccountNumber && o.payoutAccountName),
+        hasSubaccount: !!o.paystackSubaccountCode,
+        eventCount: o._count.events,
+        orderCount: o.events.reduce((sum, e) => sum + e.orders.length, 0),
+        payoutRecords: o.payoutRecords.map((pr) => ({
+          id: pr.id,
+          amount: pr.amount,
+          reference: pr.reference,
+          paidAt: pr.paidAt.toISOString(),
+        })),
+      };
+    });
+
     return NextResponse.json({
-      payouts: payouts.map((p) => ({
-        id: p.id,
-        amount: p.amount,
-        reference: p.reference,
-        status: p.status,
-        paidAt: p.paidAt.toISOString(),
-        organizer: {
-          id: p.user.id,
-          name: p.user.name || p.user.email,
-          email: p.user.email,
-        },
-      })),
+      organizers: rows,
       total,
       page,
       limit,

@@ -342,7 +342,7 @@ export default function AdminDashboard() {
       const res = await fetch(`/api/admin/settlements?${params}`);
       if (res.ok) {
         const data = await res.json();
-        setSettlements(data.payouts);
+        setSettlements(data.organizers);
         setSettlementTotal(data.total);
         setSettlementTotalPages(data.totalPages);
       }
@@ -749,34 +749,46 @@ export default function AdminDashboard() {
                     <Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" />
                   </div>
                 ) : settlements.length === 0 ? (
-                  <p className="p-8 text-center text-muted-foreground">No settlements found.</p>
+                  <p className="p-8 text-center text-muted-foreground">No organizers with revenue found.</p>
                 ) : (
                   <>
-                    <table className="w-full">
-                      <thead className="border-b">
-                        <tr className="text-left">
-                          <th className="p-4 font-medium">Organizer</th>
-                          <th className="p-4 font-medium">Amount</th>
-                          <th className="p-4 font-medium">Date</th>
-                          <th className="p-4 font-medium">Reference</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {settlements.map((s: any) => (
-                          <tr key={s.id} className="border-b">
-                            <td className="p-4">
-                              <p className="font-medium">{s.organizer.name}</p>
-                              <p className="text-sm text-muted-foreground">{s.organizer.email}</p>
-                            </td>
-                            <td className="p-4 font-medium">₦{(s.amount / 100).toLocaleString()}</td>
-                            <td className="p-4 text-muted-foreground">
-                              {new Date(s.paidAt).toLocaleDateString()}
-                            </td>
-                            <td className="p-4 text-sm text-muted-foreground font-mono">{s.reference}</td>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="border-b">
+                          <tr className="text-left">
+                            <th className="p-4 font-medium">Organizer</th>
+                            <th className="p-4 font-medium">Revenue</th>
+                            <th className="p-4 font-medium">Expected</th>
+                            <th className="p-4 font-medium">Settled</th>
+                            <th className="p-4 font-medium">Pending</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {settlements.map((s: any) => (
+                            <tr key={s.id} className="border-b">
+                              <td className="p-4">
+                                <p className="font-medium">{s.name}</p>
+                                <p className="text-sm text-muted-foreground">{s.email}</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {s.hasBankSetup ? (
+                                    <span className="text-green-600">Bank setup</span>
+                                  ) : (
+                                    <span className="text-red-400">No bank</span>
+                                  )}
+                                  {" · "}{s.orderCount} orders
+                                </p>
+                              </td>
+                              <td className="p-4">₦{s.totalRevenue.toLocaleString()}</td>
+                              <td className="p-4">₦{s.expectedSettlement.toLocaleString()}</td>
+                              <td className="p-4 text-green-600">₦{s.actualSettled.toLocaleString()}</td>
+                              <td className={`p-4 ${s.pending > 0 ? "text-amber-600" : "text-muted-foreground"}`}>
+                                ₦{s.pending.toLocaleString()}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                     {settlementTotalPages > 1 && (
                       <div className="flex items-center justify-between p-4 border-t">
                         <p className="text-sm text-muted-foreground">
