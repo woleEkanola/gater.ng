@@ -133,3 +133,47 @@ export async function sendCheckinOtpWhatsApp(phone: string, otp: string, organiz
     return false;
   }
 }
+
+export interface InvitationWhatsAppData {
+  phone: string;
+  name: string;
+  eventTitle: string;
+  eventDate: string;
+  eventLocation: string;
+  inviteUrl: string;
+  accessCode?: string;
+  organizerId: string;
+}
+
+export async function sendInvitationWhatsApp(data: InvitationWhatsAppData): Promise<boolean> {
+  try {
+    const organizer = await prisma.user.findUnique({
+      where: { id: data.organizerId },
+      select: { whatsappInstanceName: true, whatsappConnected: true },
+    });
+
+    if (!organizer?.whatsappConnected || !organizer.whatsappInstanceName) {
+      return false;
+    }
+
+    const normalizedPhone = normalizePhone(data.phone);
+    const text = [
+      `*You're invited to ${data.eventTitle}*`,
+      ``,
+      `Hello ${data.name},`,
+      `Date: ${data.eventDate}`,
+      `Location: ${data.eventLocation}`,
+      ``,
+      `RSVP: ${data.inviteUrl}`,
+      data.accessCode ? `Access code: *${data.accessCode}*` : "",
+      ``,
+      `_Powered by Hitix_`,
+    ].filter(Boolean).join("\n");
+
+    const result = await sendTextMessage(organizer.whatsappInstanceName, normalizedPhone, text);
+    return result.success;
+  } catch (error) {
+    console.error("Failed to send invitation WhatsApp:", error);
+    return false;
+  }
+}

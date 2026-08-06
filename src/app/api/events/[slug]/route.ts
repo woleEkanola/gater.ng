@@ -84,8 +84,13 @@ export async function PUT(
       isOnline, streamingLink, accessInstructions, category, targetAudience,
       speakerLabel, contactEmail, contactPhone, websiteUrl, twitterUrl,
       facebookUrl, instagramUrl, youtubeUrl, linkedinUrl,
-      showMap, latitude, longitude, requireEmail, requirePhone,
-    } = body;
+       showMap, latitude, longitude, requireEmail, requirePhone,
+       accessMode,
+     } = body;
+
+     if (accessMode !== undefined && !["TICKETS", "INVITES", "BOTH"].includes(accessMode)) {
+       return NextResponse.json({ error: "Invalid access mode" }, { status: 400 });
+     }
 
     const updatedEvent = await prisma.event.update({
       where: { id: slug },
@@ -114,7 +119,8 @@ export async function PUT(
         ...(latitude !== undefined && { latitude: latitude ? parseFloat(latitude) : null }),
         ...(longitude !== undefined && { longitude: longitude ? parseFloat(longitude) : null }),
         ...(requireEmail !== undefined && { requireEmail }),
-        ...(requirePhone !== undefined && { requirePhone }),
+         ...(requirePhone !== undefined && { requirePhone }),
+         ...(accessMode !== undefined && { accessMode }),
       },
       include: {
         organizer: { select: { id: true, name: true, email: true } },

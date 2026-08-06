@@ -37,6 +37,7 @@ const eventSchema = z.object({
   hideStreamingLink: z.boolean().default(false),
   requireEmail: z.boolean().default(true),
   requirePhone: z.boolean().default(false),
+  accessMode: z.enum(["TICKETS", "INVITES", "BOTH"]).default("TICKETS"),
 });
 
 type EventFormData = z.infer<typeof eventSchema>;
@@ -76,6 +77,7 @@ export default function CreateEventPage() {
   const [customAudience, setCustomAudience] = useState("");
   const [showTagInput, setShowTagInput] = useState(false);
   const [newTagName, setNewTagName] = useState("");
+  const [accessMode, setAccessMode] = useState<"TICKETS" | "INVITES" | "BOTH">("TICKETS");
 
   useEffect(() => {
     async function fetchData() {
@@ -146,11 +148,20 @@ export default function CreateEventPage() {
     formState: { errors },
   } = useForm<EventFormData>({
     resolver: zodResolver(eventSchema),
-    defaultValues: {
-      isPublished: false,
-      isOnline: false,
+      defaultValues: {
+        isPublished: false,
+        isOnline: false,
+        accessMode,
     },
   });
+
+  useEffect(() => {
+    const requestedMode = new URLSearchParams(window.location.search).get("accessMode");
+    if (requestedMode === "INVITES" || requestedMode === "BOTH") {
+      setAccessMode(requestedMode);
+      setValue("accessMode", requestedMode);
+    }
+  }, [setValue]);
 
   const handleBannerUpload = (url: string) => {
     setBannerUrl(url);
@@ -172,6 +183,7 @@ export default function CreateEventPage() {
           longitude: mapLongitude,
           requireEmail,
           requirePhone,
+          accessMode,
         }),
       });
 
@@ -208,9 +220,32 @@ export default function CreateEventPage() {
         <Card>
           <CardHeader>
             <CardTitle>Create New Event</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Choose how people will get access. You can use tickets, invitations, or both.
+            </p>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              <div className="grid gap-3 md:grid-cols-3">
+                {([
+                  ["TICKETS", "Ticketed event", "Sell tickets and scan ticket QR codes."],
+                  ["INVITES", "Invitation event", "Collect RSVPs and admit invited guests."],
+                  ["BOTH", "Hybrid event", "Sell tickets and manage invited guests."],
+                ] as const).map(([value, title, description]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => {
+                      setAccessMode(value);
+                      setValue("accessMode", value);
+                    }}
+                    className={`rounded-lg border p-4 text-left transition-colors ${accessMode === value ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted"}`}
+                  >
+                    <p className="font-semibold">{title}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+                  </button>
+                ))}
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="title">Event Title</Label>
                 <Input

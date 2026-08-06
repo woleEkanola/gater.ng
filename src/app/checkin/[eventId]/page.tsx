@@ -42,6 +42,9 @@ export default function StaffCheckinPage({ params }: { params: Promise<{ eventId
     message: string;
     details?: any;
   } | null>(null);
+  const [guestCode, setGuestCode] = useState("");
+  const [guestResult, setGuestResult] = useState<any>(null);
+  const [guestLoading, setGuestLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [myCheckInCount, setMyCheckInCount] = useState(0);
   const [eventTitle, setEventTitle] = useState("");
@@ -53,6 +56,7 @@ export default function StaffCheckinPage({ params }: { params: Promise<{ eventId
   const [loadingAdmissions, setLoadingAdmissions] = useState(false);
 
   const [activeTab, setActiveTab] = useState("manual");
+  const activeTabRef = useRef("manual");
   const [scannedTicketId, setScannedTicketId] = useState<string | null>(null);
   const [scannerError, setScannerError] = useState<string | null>(null);
 
@@ -71,7 +75,9 @@ export default function StaffCheckinPage({ params }: { params: Promise<{ eventId
   }, [status, eventId]);
 
   useEffect(() => {
-    if (activeTab === "scanner") {
+    activeTabRef.current = activeTab;
+    if (activeTab === "scanner" || activeTab === "guest-scanner") {
+      scannerContainerRef.current = activeTab === "guest-scanner" ? "guest-qr-reader" : "qr-reader";
       startScanner();
     } else {
       stopScanner();
@@ -160,6 +166,35 @@ export default function StaffCheckinPage({ params }: { params: Promise<{ eventId
     setCheckInCount(1);
   };
 
+  const admitGuest = async (code: string, method: "QR" | "NUMERIC_CODE" | "MANUAL") => {
+    if (!code.trim()) return;
+    setGuestLoading(true);
+    setGuestResult(null);
+    try {
+      const payload = { accessCode: code.trim() };
+      const validation = await fetch(`/api/events/${eventId}/guest-admissions/validate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const validationData = await validation.json();
+      if (!validation.ok) throw new Error(validationData.error || "Guest invitation is not valid");
+      const admission = await fetch(`/api/events/${eventId}/guest-admissions/admit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...payload, method }),
+      });
+      const admissionData = await admission.json();
+      if (!admission.ok) throw new Error(admissionData.error || "Guest admission failed");
+      setGuestResult({ success: true, invitee: admissionData.invitee });
+      setGuestCode("");
+    } catch (error: any) {
+      setGuestResult({ success: false, error: error.message || "Guest admission failed" });
+    } finally {
+      setGuestLoading(false);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") handleManualCheckIn();
   };
@@ -181,11 +216,20 @@ export default function StaffCheckinPage({ params }: { params: Promise<{ eventId
         { facingMode: "environment" },
         { fps: 10, qrbox: { width: 250, height: 250 } },
         (decodedText) => {
-          try {
-            const parsed = JSON.parse(decodedText);
-            setScannedTicketId(parsed.ticketId || decodedText);
-          } catch {
-            setScannedTicketId(decodedText);
+          if (activeTabRef.current === "guest-scanner") {
+            try {
+              const parsed = JSON.parse(decodedText);
+              setGuestCode(parsed.accessCode || parsed.code || decodedText);
+            } catch {
+              setGuestCode(decodedText);
+            }
+          } else {
+            try {
+              const parsed = JSON.parse(decodedText);
+              setScannedTicketId(parsed.ticketId || decodedText);
+            } catch {
+              setScannedTicketId(decodedText);
+            }
           }
           stopScanner();
         },
@@ -249,7 +293,7 @@ export default function StaffCheckinPage({ params }: { params: Promise<{ eventId
 
       <main className="flex-1 px-4 py-6 max-w-lg mx-auto w-full flex flex-col">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="manual" className="gap-2">
               <Keyboard className="w-4 h-4" />
               Manual Entry
@@ -258,6 +302,8 @@ export default function StaffCheckinPage({ params }: { params: Promise<{ eventId
               <ScanLine className="w-4 h-4" />
               QR Scanner
             </TabsTrigger>
+            <TabsTrigger value="guest-manual" className="gap-2">Guest Code</TabsTrigger>
+            <TabsTrigger value="guest-scanner" className="gap-2">Guest QR</TabsTrigger>
           </TabsList>
 
           <TabsContent value="manual">
@@ -317,6 +363,26 @@ export default function StaffCheckinPage({ params }: { params: Promise<{ eventId
                     "Admit Attendee"
                   )}
                 </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="guest-manual">
+            <Card className="border-0 shadow-none">
+              <CardContent className="pt-4 space-y-4">
+                <p className="text-sm text-muted-foreground">Enter the guest&apos;s six-digit invitation code.</p>
+                <Input value={guestCode} onChange={(e) => setGuestCode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="000000" className="h-14 text-center font-mono text-2xl tracking-widest" />
+                <Button className="w-full h-12" onClick={() => admitGuest(guestCode, "NUMERIC_CODE")} disabled={guestLoading || guestCode.length !== 6}>{guestLoading ? "Admitting..." : "Admit invited guest"}</Button>
+                {guestResult && <p className={guestResult.success ? "text-sm text-green-700" : "text-sm text-destructive"}>{guestResult.success ? `${guestResult.invitee?.name || "Guest"} admitted successfully` : guestResult.error}</p>}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="guest-scanner">
+            <Card className="border-0 shadow-none">
+              <CardContent className="pt-4 space-y-4">
+                {guestCode ? <div className="space-y-4 text-center"><p className="font-mono text-2xl tracking-widest">{guestCode}</p><div className="flex gap-2"><Button variant="outline" className="flex-1" onClick={() => { setGuestCode(""); setTimeout(() => startScanner(), 200); }}>Scan again</Button><Button className="flex-1" onClick={() => admitGuest(guestCode, "QR")} disabled={guestLoading}>{guestLoading ? "Admitting..." : "Admit guest"}</Button></div></div> : <><div id="guest-qr-reader" className="w-full aspect-square rounded-lg bg-black overflow-hidden" /><p className="text-center text-xs text-muted-foreground">Point the camera at the guest QR code.</p></>}
+                {guestResult && <p className={guestResult.success ? "text-sm text-green-700" : "text-sm text-destructive"}>{guestResult.success ? `${guestResult.invitee?.name || "Guest"} admitted successfully` : guestResult.error}</p>}
               </CardContent>
             </Card>
           </TabsContent>
@@ -402,7 +468,7 @@ export default function StaffCheckinPage({ params }: { params: Promise<{ eventId
                 ) : (
                   <div className="space-y-3">
                     <div
-                      id={scannerContainerRef.current}
+                       id={activeTab === "guest-scanner" ? "guest-qr-reader" : "qr-reader"}
                       className="w-full aspect-square bg-black rounded-lg overflow-hidden"
                     />
                     <p className="text-xs text-muted-foreground text-center">

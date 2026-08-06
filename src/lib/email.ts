@@ -411,6 +411,46 @@ export async function sendCheckinOtpEmail(email: string, otp: string) {
   }
 }
 
+export interface InvitationEmailData {
+  email: string;
+  name: string;
+  eventTitle: string;
+  eventDate: string;
+  eventLocation: string;
+  inviteUrl: string;
+  accessCode?: string;
+}
+
+export async function sendInvitationEmail(data: InvitationEmailData) {
+  const htmlContent = `
+<!DOCTYPE html>
+<html>
+<body style="font-family: Arial, sans-serif; background:#f9fafb; padding:24px;">
+  <div style="max-width:560px; margin:auto; background:#fff; padding:32px; border-radius:12px;">
+    <h1 style="margin-top:0;">You're invited to ${data.eventTitle}</h1>
+    <p>Hello ${data.name},</p>
+    <p>Please RSVP for this event.</p>
+    <p><strong>Date:</strong> ${data.eventDate}<br><strong>Location:</strong> ${data.eventLocation}</p>
+    <p style="text-align:center; margin:28px 0;"><a href="${data.inviteUrl}" style="background:#e11d48; color:#fff; padding:14px 24px; border-radius:8px; text-decoration:none;">Open invitation</a></p>
+    ${data.accessCode ? `<p>Your access code is <strong style="font-size:24px; letter-spacing:4px;">${data.accessCode}</strong>.</p>` : ""}
+  </div>
+</body>
+</html>`;
+
+  try {
+    const result = await resend.emails.send({
+      from: "Hitix <invitations@hitix.online>",
+      to: data.email,
+      subject: `You're invited to ${data.eventTitle}`,
+      html: htmlContent,
+    });
+    return { success: true, data: result };
+  } catch (error) {
+    console.error("Error sending invitation email:", error);
+    return { success: false, error };
+  }
+}
+
 interface OrganizerSaleEmailData {
   organizerEmail: string;
   organizerName: string;
