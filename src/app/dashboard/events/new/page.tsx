@@ -13,7 +13,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { ImageUpload } from "@/components/ui/upload-button";
+import dynamic from "next/dynamic";
 import { Globe, MapPin, Users, X } from "lucide-react";
+
+const MapLocationPicker = dynamic(
+  () => import("@/components/map-location-picker").then((mod) => mod.MapLocationPicker),
+  { ssr: false }
+);
 
 const eventSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -29,6 +35,9 @@ const eventSchema = z.object({
   tagIds: z.array(z.string()).optional(),
   hideAddress: z.boolean().default(false),
   hideStreamingLink: z.boolean().default(false),
+  requireEmail: z.boolean().default(true),
+  requirePhone: z.boolean().default(false),
+  accessMode: z.enum(["TICKETS", "INVITES", "BOTH"]).default("TICKETS"),
 });
 
 type EventFormData = z.infer<typeof eventSchema>;
@@ -56,12 +65,19 @@ export default function CreateEventPage() {
   const [isOnline, setIsOnline] = useState(false);
   const [hideAddress, setHideAddress] = useState(false);
   const [hideStreamingLink, setHideStreamingLink] = useState(false);
+  const [requireEmail, setRequireEmail] = useState(true);
+  const [requirePhone, setRequirePhone] = useState(false);
+  const [showMap, setShowMap] = useState(false);
+  const [mapLocation, setMapLocation] = useState("");
+  const [mapLatitude, setMapLatitude] = useState<number | null>(null);
+  const [mapLongitude, setMapLongitude] = useState<number | null>(null);
   const [tags, setTags] = useState<{ id: string; name: string; color: string }[]>([]);
   const [selectedTags, setSelectedTags] = useState<{ id: string; name: string; color: string }[]>([]);
   const [audienceTypes, setAudienceTypes] = useState<{ id: string; name: string }[]>([]);
   const [customAudience, setCustomAudience] = useState("");
   const [showTagInput, setShowTagInput] = useState(false);
   const [newTagName, setNewTagName] = useState("");
+  const [accessMode, setAccessMode] = useState<"TICKETS" | "INVITES" | "BOTH">("TICKETS");
 
   useEffect(() => {
     async function fetchData() {
@@ -132,11 +148,20 @@ export default function CreateEventPage() {
     formState: { errors },
   } = useForm<EventFormData>({
     resolver: zodResolver(eventSchema),
-    defaultValues: {
-      isPublished: false,
-      isOnline: false,
+      defaultValues: {
+        isPublished: false,
+        isOnline: false,
+        accessMode,
     },
   });
+
+  useEffect(() => {
+    const requestedMode = new URLSearchParams(window.location.search).get("accessMode");
+    if (requestedMode === "INVITES" || requestedMode === "BOTH") {
+      setAccessMode(requestedMode);
+      setValue("accessMode", requestedMode);
+    }
+  }, [setValue]);
 
   const handleBannerUpload = (url: string) => {
     setBannerUrl(url);
@@ -153,6 +178,12 @@ export default function CreateEventPage() {
           ...data, 
           banner: bannerUrl,
           tagIds: selectedTags.map((t) => t.id),
+          showMap,
+          latitude: mapLatitude,
+          longitude: mapLongitude,
+          requireEmail,
+          requirePhone,
+          accessMode,
         }),
       });
 
@@ -189,9 +220,32 @@ export default function CreateEventPage() {
         <Card>
           <CardHeader>
             <CardTitle>Create New Event</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Choose how people will get access. You can use tickets, invitations, or both.
+            </p>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              <div className="grid gap-3 md:grid-cols-3">
+                {([
+                  ["TICKETS", "Ticketed event", "Sell tickets and scan ticket QR codes."],
+                  ["INVITES", "Invitation event", "Collect RSVPs and admit invited guests."],
+                  ["BOTH", "Hybrid event", "Sell tickets and manage invited guests."],
+                ] as const).map(([value, title, description]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => {
+                      setAccessMode(value);
+                      setValue("accessMode", value);
+                    }}
+                    className={`rounded-lg border p-4 text-left transition-colors ${accessMode === value ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted"}`}
+                  >
+                    <p className="font-semibold">{title}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+                  </button>
+                ))}
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="title">Event Title</Label>
                 <Input
@@ -218,7 +272,7 @@ export default function CreateEventPage() {
                 <Label>Event Banner</Label>
                 <ImageUpload value={bannerUrl} onChange={handleBannerUpload} />
                 <p className="text-sm text-muted-foreground">
-                  Recommended size: 1200x600px
+                  Recommended size: 1000x400px
                 </p>
               </div>
 
@@ -273,15 +327,20 @@ export default function CreateEventPage() {
               ) : (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor="location">Location (optional)</Label>
-                    <Input
-                      id="location"
-                      {...register("location")}
-                      placeholder="Event location"
+                    <Label htmlFor="location">Location</Label>
+                    <MapLocationPicker
+                      location={mapLocation}
+                      latitude={mapLatitude}
+                      longitude={mapLongitude}
+                      showMap={showMap}
+                      onChange={({ location, latitude, longitude, showMap: sm }) => {
+                        setMapLocation(location);
+                        setMapLatitude(latitude);
+                        setMapLongitude(longitude);
+                        setShowMap(sm);
+                        setValue("location", location);
+                      }}
                     />
-                    <p className="text-sm text-muted-foreground">
-                      Leave empty to set later
-                    </p>
                   </div>
                   <div className="flex items-center gap-2 p-4 border rounded-lg bg-gray-50">
                     <input
@@ -410,6 +469,41 @@ export default function CreateEventPage() {
                   className="w-4 h-4"
                 />
                 <Label htmlFor="isPublished">Publish event immediately</Label>
+              </div>
+
+              <div className="space-y-3 p-4 border rounded-lg bg-gray-50">
+                <Label className="font-semibold">Buyer Information</Label>
+                <p className="text-sm text-muted-foreground">Choose what buyers must provide when purchasing tickets.</p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="requireEmail"
+                    checked={requireEmail}
+                    onChange={(e) => {
+                      setRequireEmail(e.target.checked);
+                      setValue("requireEmail", e.target.checked);
+                    }}
+                    className="w-4 h-4"
+                  />
+                  <Label htmlFor="requireEmail" className="cursor-pointer">
+                    Require email address
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="requirePhone"
+                    checked={requirePhone}
+                    onChange={(e) => {
+                      setRequirePhone(e.target.checked);
+                      setValue("requirePhone", e.target.checked);
+                    }}
+                    className="w-4 h-4"
+                  />
+                  <Label htmlFor="requirePhone" className="cursor-pointer">
+                    Require phone number (for WhatsApp confirmations)
+                  </Label>
+                </div>
               </div>
 
               <div className="flex gap-4">

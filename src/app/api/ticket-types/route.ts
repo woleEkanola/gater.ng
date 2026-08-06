@@ -29,6 +29,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
 
+    if (event.accessMode === "INVITES") {
+      return NextResponse.json({ error: "This event is configured for invitations, not tickets" }, { status: 400 });
+    }
+
     const user = await prisma.user.findUnique({
       where: { email: session.user.email! },
     });
@@ -77,6 +81,10 @@ export async function PUT(request: NextRequest) {
 
     if (!ticketType) {
       return NextResponse.json({ error: "Ticket type not found" }, { status: 404 });
+    }
+
+    if (ticketType.event.accessMode === "INVITES") {
+      return NextResponse.json({ error: "This event is configured for invitations, not tickets" }, { status: 400 });
     }
 
     const user = await prisma.user.findUnique({

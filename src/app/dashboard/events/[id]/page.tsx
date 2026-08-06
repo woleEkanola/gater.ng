@@ -18,12 +18,29 @@ import { BannerCropUpload } from "@/components/ui/banner-crop-upload";
 import { SpeakerImageUpload } from "@/components/ui/speaker-image-upload";
 import { GalleryUpload } from "@/components/ui/gallery-upload";
 import { TicketImageUpload } from "@/components/ui/ticket-image-upload";
-import { Download, Users, DollarSign, Ticket, Link as LinkIcon, Image, Pencil, Globe, Tag, Trash2, Plus, Percent, HelpCircle, Eye, EyeOff } from "lucide-react";
+import dynamic from "next/dynamic";
+
+const MapLocationPicker = dynamic(
+  () => import("@/components/map-location-picker").then((mod) => mod.MapLocationPicker),
+  { ssr: false }
+);
+import { Download, Users, DollarSign, Ticket, Link as LinkIcon, Image, Pencil, Globe, Tag, Trash2, Plus, Percent, HelpCircle, Eye, EyeOff, MessageCircle, AlertCircle } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const ticketTypeSchema = z.object({
   name: z.string().min(1, "Ticket name is required"),
   price: z.number().min(0, "Price must be positive"),
   quantity: z.number().int().min(1, "Quantity must be at least 1"),
+  groupSize: z.number().int().min(1, "Group size must be at least 1").default(1),
   salesStart: z.string().optional(),
   salesEnd: z.string().optional(),
 });
@@ -46,6 +63,9 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
   const [editedTitle, setEditedTitle] = useState("");
   const [editedDescription, setEditedDescription] = useState("");
   const [editedLocation, setEditedLocation] = useState("");
+  const [editedShowMap, setEditedShowMap] = useState(false);
+  const [editedLatitude, setEditedLatitude] = useState<number | null>(null);
+  const [editedLongitude, setEditedLongitude] = useState<number | null>(null);
   const [editedDateTime, setEditedDateTime] = useState("");
   const [editedIsOnline, setEditedIsOnline] = useState(false);
   const [editedStreamingLink, setEditedStreamingLink] = useState("");
@@ -54,13 +74,46 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
   const [editedTargetAudience, setEditedTargetAudience] = useState("");
   const [editedSpeakerLabel, setEditedSpeakerLabel] = useState("");
   const [ticketImage, setTicketImage] = useState("");
+  const [editingTicketType, setEditingTicketType] = useState<any>(null);
+  const [editTicketModalOpen, setEditTicketModalOpen] = useState(false);
+  const [savingTicketType, setSavingTicketType] = useState(false);
   const [discountCodes, setDiscountCodes] = useState<any[]>([]);
+  const [selectedPromoCode, setSelectedPromoCode] = useState<string>("ALL");
   const [showDiscountForm, setShowDiscountForm] = useState(false);
   const [savingDiscount, setSavingDiscount] = useState(false);
   const [newDiscountCode, setNewDiscountCode] = useState("");
   const [newDiscountType, setNewDiscountType] = useState("percentage");
   const [newDiscountValue, setNewDiscountValue] = useState(0);
   const [newDiscountMaxUses, setNewDiscountMaxUses] = useState<number | "">("");
+  const [newDiscountTicketTypeId, setNewDiscountTicketTypeId] = useState("");
+  const [whatsappStatus, setWhatsappStatus] = useState<{ connected: boolean; phone: string | null; instanceExists: boolean } | null>(null);
+  const [editingDiscountCode, setEditingDiscountCode] = useState<any>(null);
+  const [editDiscountModalOpen, setEditDiscountModalOpen] = useState(false);
+  const [savingEditDiscount, setSavingEditDiscount] = useState(false);
+  const [staffMembers, setStaffMembers] = useState<any[]>([]);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [invitePhone, setInvitePhone] = useState("");
+  const [invitingStaff, setInvitingStaff] = useState(false);
+  const [inviteGroups, setInviteGroups] = useState<any[]>([]);
+  const [inviteGroupName, setInviteGroupName] = useState("");
+  const [inviteGroupDescription, setInviteGroupDescription] = useState("");
+  const [inviteAccessMode, setInviteAccessMode] = useState<"OPEN_RSVP" | "TOKENIZED">("OPEN_RSVP");
+  const [inviteMaxPlusOnes, setInviteMaxPlusOnes] = useState<number | null>(1);
+  const [inviteMaxAttendees, setInviteMaxAttendees] = useState<number | "">("");
+  const [inviteRequireEmail, setInviteRequireEmail] = useState(true);
+  const [inviteRequirePhone, setInviteRequirePhone] = useState(false);
+  const [invitePlusOneRequireEmail, setInvitePlusOneRequireEmail] = useState(false);
+  const [inviteRows, setInviteRows] = useState("");
+  const [creatingInvite, setCreatingInvite] = useState(false);
+  const [deleteTicketTarget, setDeleteTicketTarget] = useState<any>(null);
+  const [deletingTicket, setDeletingTicket] = useState(false);
+  const [deleteTypeTarget, setDeleteTypeTarget] = useState<any>(null);
+  const [deletingType, setDeletingType] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [attendeeSearch, setAttendeeSearch] = useState("");
+  const [attendeePage, setAttendeePage] = useState(1);
+  const [attendeeTotal, setAttendeeTotal] = useState(0);
+  const [attendeeTotalPages, setAttendeeTotalPages] = useState(1);
 
   useEffect(() => {
     async function fetchDiscountCodes() {
@@ -73,6 +126,224 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
     }
     fetchDiscountCodes();
   }, [eventId]);
+
+  useEffect(() => {
+    async function fetchInvites() {
+      if (!eventId) return;
+      const res = await fetch(`/api/events/${eventId}/invites`);
+      if (res.ok) setInviteGroups(await res.json());
+    }
+    fetchInvites();
+  }, [eventId]);
+
+  useEffect(() => {
+    async function fetchWhatsappStatus() {
+      try {
+        const res = await fetch("/api/whatsapp/status");
+        if (res.ok) {
+          const data = await res.json();
+          setWhatsappStatus(data);
+        }
+      } catch {
+        // ignore
+      }
+    }
+    fetchWhatsappStatus();
+  }, [eventId]);
+
+  useEffect(() => {
+    async function fetchStaff() {
+      if (!eventId) return;
+      const res = await fetch(`/api/events/${eventId}/staff`);
+      if (res.ok) {
+        const data = await res.json();
+        setStaffMembers(data);
+      }
+    }
+    fetchStaff();
+  }, [eventId]);
+
+  const handleInviteStaff = async () => {
+    if (!inviteEmail.trim()) {
+      toast({ title: "Error", description: "Email is required", variant: "destructive" });
+      return;
+    }
+    setInvitingStaff(true);
+    try {
+      const res = await fetch(`/api/events/${eventId}/staff`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: inviteEmail.trim(), phone: invitePhone.trim() || null }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: "Success", description: "Invitation sent" });
+        setInviteEmail("");
+        setInvitePhone("");
+        const staffRes = await fetch(`/api/events/${eventId}/staff`);
+        if (staffRes.ok) {
+          setStaffMembers(await staffRes.json());
+        }
+      } else {
+        toast({ title: "Error", description: data.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to send invitation", variant: "destructive" });
+    } finally {
+      setInvitingStaff(false);
+    }
+  };
+
+  const handleRevokeStaff = async (staffId: string) => {
+    if (!confirm("Revoke this staff member's access?")) return;
+    try {
+      const res = await fetch(`/api/events/${eventId}/staff/${staffId}`, { method: "DELETE" });
+      if (res.ok) {
+        toast({ title: "Success", description: "Access revoked" });
+        const staffRes = await fetch(`/api/events/${eventId}/staff`);
+        if (staffRes.ok) {
+          setStaffMembers(await staffRes.json());
+        }
+      } else {
+        const data = await res.json();
+        toast({ title: "Error", description: data.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to revoke access", variant: "destructive" });
+    }
+  };
+
+  const handleResendInvitation = async (staffId: string) => {
+    try {
+      const res = await fetch(`/api/events/${eventId}/staff/${staffId}/resend`, { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: "Success", description: "Invitation resent" });
+      } else {
+        toast({ title: "Error", description: data.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to resend invitation", variant: "destructive" });
+    }
+  };
+
+  const handleCreateInvite = async () => {
+    if (!inviteGroupName.trim()) {
+      toast({ title: "Error", description: "Invitation name is required", variant: "destructive" });
+      return;
+    }
+    setCreatingInvite(true);
+    try {
+      const invitees = inviteRows.split("\n").map((row) => {
+        const [name, email, phone] = row.split(",").map((value) => value.trim());
+        return name ? { name, email: email || null, phone: phone || null } : null;
+      }).filter(Boolean);
+      const res = await fetch(`/api/events/${eventId}/invites`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: inviteGroupName.trim(),
+          description: inviteGroupDescription.trim() || undefined,
+          accessMode: inviteAccessMode,
+          maxPlusOnes: inviteMaxPlusOnes,
+          maxAttendees: inviteMaxAttendees === "" ? null : inviteMaxAttendees,
+          formConfig: {
+            requireName: true,
+            requireEmail: inviteRequireEmail,
+            requirePhone: inviteRequirePhone,
+            plusOneRequireEmail: invitePlusOneRequireEmail,
+            fields: [],
+          },
+          invitees,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to create invitation");
+      setInviteGroups((groups) => [data, ...groups]);
+      setInviteGroupName("");
+      setInviteGroupDescription("");
+      setInviteRows("");
+      toast({ title: "Invitation created", description: inviteAccessMode === "OPEN_RSVP" ? "Share the public RSVP link with guests." : "Invitations sent to the listed guests." });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setCreatingInvite(false);
+    }
+  };
+
+  const copyInviteLink = async (slug: string) => {
+    const baseUrl = window.location.origin;
+    await navigator.clipboard.writeText(`${baseUrl}/invites/${slug}`);
+    toast({ title: "Copied", description: "Invitation link copied" });
+  };
+
+  const handleDeleteTicket = async () => {
+    if (!deleteTicketTarget) return;
+    setDeletingTicket(true);
+    try {
+      const res = await fetch(`/api/tickets/${deleteTicketTarget.id}`, { method: "DELETE" });
+      if (res.ok) {
+        toast({ title: "Success", description: "Ticket deleted" });
+        setAttendees(attendees.filter((a) => a.id !== deleteTicketTarget.id));
+        setAttendeeTotal((t) => t - 1);
+        setDeleteTicketTarget(null);
+      } else {
+        const data = await res.json();
+        toast({ title: "Error", description: data.error || "Failed to delete", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to delete ticket", variant: "destructive" });
+    } finally {
+      setDeletingTicket(false);
+    }
+  };
+
+  const handleDeleteTicketType = async () => {
+    if (!deleteTypeTarget) return;
+    setDeletingType(true);
+    try {
+      const res = await fetch(`/api/ticket-types/${deleteTypeTarget.id}`, { method: "DELETE" });
+      if (res.ok) {
+        toast({ title: "Success", description: "Ticket type deleted" });
+        setTicketTypes(ticketTypes.filter((tt) => tt.id !== deleteTypeTarget.id));
+        setDeleteTypeTarget(null);
+      } else {
+        const data = await res.json();
+        toast({ title: "Error", description: data.error || "Failed to delete", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to delete ticket type", variant: "destructive" });
+    } finally {
+      setDeletingType(false);
+    }
+  };
+
+  const handleTogglePublish = async () => {
+    setPublishing(true);
+    const newPublished = !event.isPublished;
+    try {
+      const res = await fetch(`/api/events/${eventId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: event.title,
+          dateTime: event.dateTime,
+          isPublished: newPublished,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setEvent(data);
+        toast({ title: "Success", description: newPublished ? "Event published" : "Event unpublished" });
+      } else {
+        toast({ title: "Error", description: data.error || "Failed to update", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to toggle publish", variant: "destructive" });
+    } finally {
+      setPublishing(false);
+    }
+  };
 
   const handleCreateDiscountCode = async () => {
     if (!newDiscountCode) return;
@@ -87,6 +358,7 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
           discountType: newDiscountType,
           discountValue: newDiscountType === "percentage" ? newDiscountValue * 100 : newDiscountValue * 100,
           maxUses: newDiscountMaxUses || null,
+          ticketTypeId: newDiscountTicketTypeId || null,
         }),
       });
       if (res.ok) {
@@ -95,6 +367,7 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
         setNewDiscountCode("");
         setNewDiscountValue(0);
         setNewDiscountMaxUses("");
+        setNewDiscountTicketTypeId("");
         setShowDiscountForm(false);
         toast({ title: "Success", description: "Discount code created" });
       } else {
@@ -118,6 +391,49 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
       }
     } catch {
       toast({ title: "Error", description: "Failed to delete", variant: "destructive" });
+    }
+  };
+
+  const openEditDiscountModal = (discount: any) => {
+    setEditingDiscountCode({
+      ...discount,
+      discountValue: discount.discountType === "percentage" ? discount.discountValue / 100 : discount.discountValue / 100,
+    });
+    setEditDiscountModalOpen(true);
+  };
+
+  const handleUpdateDiscountCode = async () => {
+    if (!editingDiscountCode) return;
+    setSavingEditDiscount(true);
+    try {
+      const res = await fetch("/api/discount-codes", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editingDiscountCode.id,
+          code: editingDiscountCode.code,
+          discountType: editingDiscountCode.discountType,
+          discountValue: editingDiscountCode.discountType === "percentage"
+            ? Math.round(editingDiscountCode.discountValue * 100)
+            : Math.round(editingDiscountCode.discountValue * 100),
+          maxUses: editingDiscountCode.maxUses || null,
+          ticketTypeId: editingDiscountCode.ticketTypeId || null,
+        }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setDiscountCodes(discountCodes.map(c => c.id === updated.id ? updated : c));
+        setEditDiscountModalOpen(false);
+        setEditingDiscountCode(null);
+        toast({ title: "Success", description: "Discount code updated" });
+      } else {
+        const err = await res.json();
+        toast({ title: "Error", description: err.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to update code", variant: "destructive" });
+    } finally {
+      setSavingEditDiscount(false);
     }
   };
 
@@ -148,6 +464,8 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
   const [editedFacebookUrl, setEditedFacebookUrl] = useState("");
   const [editedInstagramUrl, setEditedInstagramUrl] = useState("");
   const [editedYoutubeUrl, setEditedYoutubeUrl] = useState("");
+  const [editedRequireEmail, setEditedRequireEmail] = useState(true);
+  const [editedRequirePhone, setEditedRequirePhone] = useState(false);
 
   useEffect(() => {
     async function fetchFaqs() {
@@ -416,6 +734,9 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
     setEditedTitle(event.title || "");
     setEditedDescription(event.description || "");
     setEditedLocation(event.location || "");
+    setEditedShowMap(event.showMap || false);
+    setEditedLatitude(event.latitude ?? null);
+    setEditedLongitude(event.longitude ?? null);
     setEditedDateTime(event.dateTime ? new Date(event.dateTime).toISOString().slice(0, 16) : "");
     setEditedIsOnline(event.isOnline || false);
     setEditedStreamingLink(event.streamingLink || "");
@@ -430,10 +751,20 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
     setEditedFacebookUrl(event.facebookUrl || "");
     setEditedInstagramUrl(event.instagramUrl || "");
     setEditedYoutubeUrl(event.youtubeUrl || "");
+    setEditedRequireEmail(event.requireEmail !== undefined ? event.requireEmail : true);
+    setEditedRequirePhone(event.requirePhone !== undefined ? event.requirePhone : false);
     setIsEditingDetails(true);
   };
 
   const saveEventDetails = async () => {
+    if (!editedTitle.trim()) {
+      toast({ title: "Error", description: "Title is required", variant: "destructive" });
+      return;
+    }
+    if (!editedDateTime) {
+      toast({ title: "Error", description: "Date and time are required", variant: "destructive" });
+      return;
+    }
     setSavingDetails(true);
     try {
       const res = await fetch(`/api/events/${eventId}`, {
@@ -445,6 +776,9 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
           location: editedIsOnline ? "Online" : editedLocation,
           dateTime: editedDateTime ? new Date(editedDateTime).toISOString() : null,
           isOnline: editedIsOnline,
+          showMap: editedShowMap,
+          latitude: editedLatitude,
+          longitude: editedLongitude,
           streamingLink: editedIsOnline ? editedStreamingLink : null,
           accessInstructions: editedIsOnline ? editedAccessInstructions : null,
           category: editedCategory,
@@ -457,6 +791,8 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
           facebookUrl: editedFacebookUrl,
           instagramUrl: editedInstagramUrl,
           youtubeUrl: editedYoutubeUrl,
+          requireEmail: editedRequireEmail,
+          requirePhone: editedRequirePhone,
         }),
       });
       const result = await res.json();
@@ -471,6 +807,9 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
         location: editedIsOnline ? "Online" : editedLocation,
         dateTime: result.dateTime,
         isOnline: editedIsOnline,
+        showMap: editedShowMap,
+        latitude: editedLatitude,
+        longitude: editedLongitude,
         streamingLink: editedStreamingLink,
         accessInstructions: editedAccessInstructions,
         category: editedCategory,
@@ -483,6 +822,8 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
         facebookUrl: editedFacebookUrl,
         instagramUrl: editedInstagramUrl,
         youtubeUrl: editedYoutubeUrl,
+        requireEmail: editedRequireEmail,
+        requirePhone: editedRequirePhone,
       });
       setIsEditingDetails(false);
       toast({ title: "Success", description: "Event details updated" });
@@ -534,7 +875,9 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
         const attendeesData = await attendeesRes.json();
         setEvent(eventData);
         setTicketTypes(typesData);
-        setAttendees(attendeesData);
+        setAttendees(attendeesData.tickets || attendeesData);
+        setAttendeeTotal(attendeesData.total || (attendeesData.tickets || attendeesData).length);
+        setAttendeeTotalPages(attendeesData.totalPages || 1);
       } catch (error) {
         console.error("Error loading data:", error);
       } finally {
@@ -543,6 +886,26 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
     }
     fetchData();
   }, [eventId]);
+
+  useEffect(() => {
+    async function fetchFilteredAttendees() {
+      if (!eventId) return;
+      const params = new URLSearchParams();
+      params.set("eventId", eventId);
+      if (selectedPromoCode !== "ALL") params.set("discountCode", selectedPromoCode);
+      if (attendeeSearch) params.set("search", attendeeSearch);
+      params.set("page", attendeePage.toString());
+      params.set("limit", "20");
+      const res = await fetch(`/api/attendees?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setAttendees(data.tickets || data);
+        setAttendeeTotal(data.total || (data.tickets || data).length);
+        setAttendeeTotalPages(data.totalPages || 1);
+      }
+    }
+    fetchFilteredAttendees();
+  }, [eventId, selectedPromoCode, attendeeSearch, attendeePage]);
 
   const onSubmitTicketType = async (data: TicketTypeFormData) => {
     setIsLoading(true);
@@ -571,22 +934,40 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
     }
   };
 
-  const updateTicketPrice = async (ticketTypeId: string, newPrice: number) => {
+  const updateTicketType = async (data: any) => {
+    setSavingTicketType(true);
     try {
       const res = await fetch("/api/ticket-types", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: ticketTypeId, price: newPrice }),
+        body: JSON.stringify(data),
       });
+      const result = await res.json();
       if (res.ok) {
         setTicketTypes(ticketTypes.map(tt => 
-          tt.id === ticketTypeId ? { ...tt, price: newPrice } : tt
+          tt.id === data.id ? result : tt
         ));
-        toast({ title: "Success", description: "Price updated" });
+        setEditTicketModalOpen(false);
+        setEditingTicketType(null);
+        toast({ title: "Success", description: "Ticket type updated" });
+      } else {
+        toast({ title: "Error", description: result.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Error", description: "Failed to update price", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to update ticket type", variant: "destructive" });
+    } finally {
+      setSavingTicketType(false);
     }
+  };
+
+  const openEditTicketModal = (tt: any) => {
+    setEditingTicketType({
+      ...tt,
+      price: tt.price / 100,
+      salesStart: tt.salesStart ? new Date(tt.salesStart).toISOString().slice(0, 16) : "",
+      salesEnd: tt.salesEnd ? new Date(tt.salesEnd).toISOString().slice(0, 16) : "",
+    });
+    setEditTicketModalOpen(true);
   };
 
   const onLogSale = async (data: SaleFormData) => {
@@ -617,7 +998,7 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
       
       const attendeesRes = await fetch(`/api/attendees?eventId=${eventId}`);
       const attendeesData = await attendeesRes.json();
-      setAttendees(attendeesData);
+      setAttendees(attendeesData.tickets || attendeesData);
     } catch {
       toast({ title: "Error", description: "Something went wrong", variant: "destructive" });
     } finally {
@@ -661,6 +1042,27 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
       </header>
 
       <main className="container mx-auto px-4 py-8">
+        {whatsappStatus && !whatsappStatus.connected && whatsappStatus.instanceExists && (
+          <div className="mb-6 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center justify-between text-sm">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-amber-600" />
+              <span className="text-amber-800">
+                WhatsApp is disconnected — buyers will only receive email confirmations.
+              </span>
+            </div>
+            <Link href="/dashboard/whatsapp" className="text-amber-700 hover:text-amber-900 underline flex-shrink-0">
+              Reconnect →
+            </Link>
+          </div>
+        )}
+        {whatsappStatus?.connected && (
+          <div className="mb-6 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2 text-sm">
+            <MessageCircle className="w-4 h-4 text-green-600" />
+            <span className="text-green-800">
+              WhatsApp confirmations active{whatsappStatus.phone ? ` (${whatsappStatus.phone})` : ""}
+            </span>
+          </div>
+        )}
         <div className="mb-8">
           {isEditingDetails ? (
             <div className="space-y-4">
@@ -720,10 +1122,17 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
               ) : (
                 <div>
                   <Label>Location</Label>
-                  <Input
-                    value={editedLocation}
-                    onChange={(e) => setEditedLocation(e.target.value)}
-                    placeholder="Event location"
+                  <MapLocationPicker
+                    location={editedLocation}
+                    latitude={editedLatitude}
+                    longitude={editedLongitude}
+                    showMap={editedShowMap}
+                    onChange={({ location, latitude, longitude, showMap }) => {
+                      setEditedLocation(location);
+                      setEditedLatitude(latitude);
+                      setEditedLongitude(longitude);
+                      setEditedShowMap(showMap);
+                    }}
                   />
                 </div>
               )}
@@ -786,9 +1195,21 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
                     <p className="text-muted-foreground">{event.description}</p>
                   )}
                 </div>
-                <Button variant="ghost" size="icon" onClick={startEditingDetails}>
-                  <Pencil className="w-4 h-4" />
-                </Button>
+                <div className="flex items-center gap-2">
+                  {event && (
+                    <Button
+                      variant={event.isPublished ? "destructive" : "default"}
+                      size="sm"
+                      onClick={handleTogglePublish}
+                      disabled={publishing}
+                    >
+                      {publishing ? "..." : event.isPublished ? "Unpublish" : "Publish"}
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="icon" onClick={startEditingDetails}>
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
               {event?.dateTime && (
                 <p className="text-muted-foreground">
@@ -842,7 +1263,7 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
                 onChange={handleBannerChange}
               />
               <p className="text-sm text-muted-foreground mt-2">
-                Recommended size: 1200x600px (2:1 ratio). Images are automatically cropped to fit.
+                Recommended size: 1000x400px (5:2 ratio). Images are automatically cropped to fit.
               </p>
             </CardContent>
           </Card>
@@ -901,6 +1322,19 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
                         placeholder="Unlimited"
                       />
                     </div>
+                    <div>
+                      <Label>Applies To</Label>
+                      <select
+                        value={newDiscountTicketTypeId}
+                        onChange={(e) => setNewDiscountTicketTypeId(e.target.value)}
+                        className="w-full border rounded-md px-3 py-2"
+                      >
+                        <option value="">All Ticket Types</option>
+                        {ticketTypes.map((tt: any) => (
+                          <option key={tt.id} value={tt.id}>{tt.name}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     <Button onClick={handleCreateDiscountCode} disabled={savingDiscount || !newDiscountCode}>
@@ -925,18 +1359,92 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
                           {code.discountType === "percentage" 
                             ? `${code.discountValue / 100}% off` 
                             : `₦${(code.discountValue / 100).toLocaleString()} off`}
+                          {code.ticketTypeId 
+                            ? ` • ${ticketTypes.find((tt: any) => tt.id === code.ticketTypeId)?.name || "Specific ticket"}`
+                            : " • All ticket types"}
                           {code.maxUses && ` • ${code.maxUses - code.usesCount} uses left`}
                         </p>
                       </div>
-                      <Button variant="ghost" size="icon" onClick={() => handleDeleteDiscountCode(code.id)}>
-                        <Trash2 className="w-4 h-4 text-red-500" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => openEditDiscountModal(code)}>
+                          <Pencil className="w-4 h-4 text-gray-500" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteDiscountCode(code.id)}>
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
             </CardContent>
           </Card>
+        )}
+
+        {editDiscountModalOpen && editingDiscountCode && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4 space-y-4">
+              <h3 className="text-lg font-semibold">Edit Discount Code</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Code</Label>
+                  <Input
+                    value={editingDiscountCode.code}
+                    onChange={(e) => setEditingDiscountCode({ ...editingDiscountCode, code: e.target.value.toUpperCase() })}
+                  />
+                </div>
+                <div>
+                  <Label>Type</Label>
+                  <select
+                    value={editingDiscountCode.discountType}
+                    onChange={(e) => setEditingDiscountCode({ ...editingDiscountCode, discountType: e.target.value })}
+                    className="w-full border rounded-md px-3 py-2"
+                  >
+                    <option value="percentage">Percentage</option>
+                    <option value="fixed">Fixed Amount</option>
+                  </select>
+                </div>
+                <div>
+                  <Label>Value {editingDiscountCode.discountType === "percentage" ? "(%)" : "(₦)"}</Label>
+                  <Input
+                    type="number"
+                    value={editingDiscountCode.discountValue}
+                    onChange={(e) => setEditingDiscountCode({ ...editingDiscountCode, discountValue: Number(e.target.value) })}
+                  />
+                </div>
+                <div>
+                  <Label>Max Uses (optional)</Label>
+                  <Input
+                    type="number"
+                    value={editingDiscountCode.maxUses ?? ""}
+                    onChange={(e) => setEditingDiscountCode({ ...editingDiscountCode, maxUses: e.target.value ? Number(e.target.value) : null })}
+                  />
+                </div>
+                <div>
+                  <Label>Applies To</Label>
+                  <select
+                    value={editingDiscountCode.ticketTypeId || ""}
+                    onChange={(e) => setEditingDiscountCode({ ...editingDiscountCode, ticketTypeId: e.target.value || null })}
+                    className="w-full border rounded-md px-3 py-2"
+                  >
+                    <option value="">All Ticket Types</option>
+                    {ticketTypes.map((tt: any) => (
+                      <option key={tt.id} value={tt.id}>{tt.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">Uses: {editingDiscountCode.usesCount} / {editingDiscountCode.maxUses || "∞"}</p>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => { setEditDiscountModalOpen(false); setEditingDiscountCode(null); }}>
+                  Cancel
+                </Button>
+                <Button onClick={handleUpdateDiscountCode} disabled={savingEditDiscount}>
+                  {savingEditDiscount ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
+            </div>
+          </div>
         )}
 
         {event?.slug && (
@@ -1031,6 +1539,31 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
               )}
             </CardContent>
           </Card>
+        )}
+
+        {(event?.accessMode === "INVITES" || event?.accessMode === "BOTH") && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Guest Invitations</CardTitle>
+            <p className="text-sm text-muted-foreground">Create multiple invitation groups for this event. Each group can have its own RSVP rules, plus-one limit, and guest list.</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2"><Label>Invitation group name</Label><Input value={inviteGroupName} onChange={(e) => setInviteGroupName(e.target.value)} placeholder="VIP Guests, General RSVP..." /></div>
+              <div className="space-y-2"><Label>Access</Label><select value={inviteAccessMode} onChange={(e) => setInviteAccessMode(e.target.value as "OPEN_RSVP" | "TOKENIZED")} className="w-full rounded-md border px-3 py-2"><option value="OPEN_RSVP">Open RSVP link</option><option value="TOKENIZED">Private tokenized invites</option></select></div>
+            </div>
+            <div className="space-y-2"><Label>Description</Label><Textarea value={inviteGroupDescription} onChange={(e) => setInviteGroupDescription(e.target.value)} placeholder="Message or context shown to guests" rows={2} /></div>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2"><Label>Plus-ones per guest</Label><select value={inviteMaxPlusOnes === null ? "unlimited" : String(inviteMaxPlusOnes)} onChange={(e) => setInviteMaxPlusOnes(e.target.value === "unlimited" ? null : Number(e.target.value))} className="w-full rounded-md border px-3 py-2"><option value="0">None</option><option value="1">1 (default)</option><option value="2">2</option><option value="3">3</option><option value="unlimited">Unlimited</option></select></div>
+              <div className="space-y-2"><Label>Total attendee limit</Label><Input type="number" min="1" value={inviteMaxAttendees} onChange={(e) => setInviteMaxAttendees(e.target.value === "" ? "" : Number(e.target.value))} placeholder="Unlimited" /></div>
+              <div className="space-y-2"><Label>RSVP fields</Label><div className="space-y-2 rounded-md border p-2 text-sm"><label className="flex items-center gap-2"><input type="checkbox" checked={inviteRequireEmail} onChange={(e) => setInviteRequireEmail(e.target.checked)} /> Require email</label><label className="flex items-center gap-2"><input type="checkbox" checked={inviteRequirePhone} onChange={(e) => setInviteRequirePhone(e.target.checked)} /> Require phone</label><label className="flex items-center gap-2"><input type="checkbox" checked={invitePlusOneRequireEmail} onChange={(e) => setInvitePlusOneRequireEmail(e.target.checked)} /> Require plus-one email</label></div></div>
+            </div>
+            <div className="space-y-2"><Label>Tokenized guest list</Label><Textarea value={inviteRows} onChange={(e) => setInviteRows(e.target.value)} placeholder="For private invites, add one guest per line: Name, email, phone" rows={3} /><p className="text-xs text-muted-foreground">Open RSVP groups can be created without rows and shared by link.</p></div>
+            <Button onClick={handleCreateInvite} disabled={creatingInvite}>{creatingInvite ? "Creating..." : "Create invitation group"}</Button>
+
+            {inviteGroups.length > 0 && <div className="space-y-3 border-t pt-4"><h4 className="font-medium">Invitation groups</h4>{inviteGroups.map((invite) => { const accepted = (invite.invitees || []).filter((guest: any) => guest.rsvpStatus === "ACCEPTED").length; const admitted = (invite.invitees || []).filter((guest: any) => guest.admissionStatus === "ADMITTED").length; return <div key={invite.id} className="rounded-lg border p-3"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-medium">{invite.name}</p><p className="text-xs text-muted-foreground">{invite.accessMode === "OPEN_RSVP" ? "Open RSVP" : "Tokenized"} · {accepted} accepted · {admitted} admitted</p></div><div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => copyInviteLink(invite.publicSlug)}>Copy link</Button><Button variant="outline" size="sm" onClick={async () => { await fetch(`/api/events/${eventId}/invites/${invite.id}/resend`, { method: "POST" }); toast({ title: "Sent", description: "Invitation messages resent" }); }}>Resend</Button></div></div>{invite.invitees?.length > 0 && <div className="mt-3 space-y-1 text-sm">{invite.invitees.map((guest: any) => <div key={guest.id} className="flex justify-between border-t pt-1"><span>{guest.name}</span><span className="text-muted-foreground">{guest.rsvpStatus} · {guest.admissionStatus}</span></div>)}</div>}</div>; })}</div>}
+          </CardContent>
+        </Card>
         )}
 
         <Card>
@@ -1285,6 +1818,134 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
           </CardContent>
         </Card>
 
+        <Card>
+          <CardHeader>
+            <CardTitle>Buyer Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">Choose what buyers must provide when purchasing tickets.</p>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="editedRequireEmail"
+                checked={editedRequireEmail}
+                onChange={(e) => setEditedRequireEmail(e.target.checked)}
+                className="w-4 h-4"
+              />
+              <Label htmlFor="editedRequireEmail" className="cursor-pointer">
+                Require email address
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="editedRequirePhone"
+                checked={editedRequirePhone}
+                onChange={(e) => setEditedRequirePhone(e.target.checked)}
+                className="w-4 h-4"
+              />
+              <Label htmlFor="editedRequirePhone" className="cursor-pointer">
+                Require phone number (for WhatsApp confirmations)
+              </Label>
+            </div>
+            <Button onClick={saveEventDetails} disabled={savingDetails}>
+              {savingDetails ? "Saving..." : "Save Buyer Settings"}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Check-in Staff</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Invite people to help check in attendees at the event gate
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Email Address</Label>
+                <Input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="staff@example.com"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Phone Number (optional)</Label>
+                <Input
+                  type="tel"
+                  value={invitePhone}
+                  onChange={(e) => setInvitePhone(e.target.value)}
+                  placeholder="08012345678"
+                />
+                <p className="text-xs text-muted-foreground">
+                  For WhatsApp OTP delivery
+                </p>
+              </div>
+            </div>
+            <Button onClick={handleInviteStaff} disabled={invitingStaff}>
+              {invitingStaff ? "Sending..." : "Invite Staff"}
+            </Button>
+
+            {staffMembers.length > 0 && (
+              <div className="space-y-3 pt-4 border-t">
+                <h4 className="font-medium">Invited Staff</h4>
+                {staffMembers.map((staff) => (
+                  <div
+                    key={staff.id}
+                    className="flex items-center justify-between p-3 bg-muted rounded-lg"
+                  >
+                    <div className="flex-1">
+                      <p className="font-medium">{staff.user.email}</p>
+                      {staff.user.phone && (
+                        <p className="text-sm text-muted-foreground">{staff.user.phone}</p>
+                      )}
+                      <div className="flex items-center gap-2 mt-1">
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                            staff.status === "ACTIVE"
+                              ? "bg-green-100 text-green-800"
+                              : staff.status === "PENDING"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : "bg-red-100 text-red-800"
+                          }`}
+                        >
+                          {staff.status}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          Invited {new Date(staff.invitedAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      {staff.status === "PENDING" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleResendInvitation(staff.id)}
+                        >
+                          Resend
+                        </Button>
+                      )}
+                      {staff.status !== "REVOKED" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleRevokeStaff(staff.id)}
+                        >
+                          Revoke
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         <div className="grid lg:grid-cols-2 gap-8">
           <Card>
             <CardHeader>
@@ -1326,6 +1987,22 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
                 </div>
 
                 <div className="space-y-2">
+                  <Label>Group Size</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    {...register("groupSize", { valueAsNumber: true })}
+                    placeholder="1"
+                  />
+                  {errors.groupSize && (
+                    <p className="text-sm text-destructive">{errors.groupSize.message}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Number of people this ticket admits (e.g., 1 for individual, 5 for a table)
+                  </p>
+                </div>
+
+                <div className="space-y-2">
                   <Label>Ticket Image (Optional)</Label>
                   <TicketImageUpload value={ticketImage} onChange={setTicketImage} />
                   <p className="text-xs text-muted-foreground">Optional image to represent this ticket type</p>
@@ -1359,30 +2036,145 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
                           <p className="font-medium">{tt.name}</p>
                           <p className="text-sm text-muted-foreground">
                             {formatCurrency(tt.price)} • {tt.quantity} available • {tt.soldCount} sold
+                            {tt.groupSize > 1 && ` • Group of ${tt.groupSize}`}
                           </p>
                         </div>
                       </div>
-                      {tt.soldCount === 0 && (
+                      <div className="flex items-center gap-1">
                         <Button 
                           variant="ghost" 
                           size="icon"
-                          onClick={() => {
-                            const currentPrice = (tt.price / 100).toString();
-                            const newPrice = prompt("Enter new price (in Naira):", currentPrice);
-                            if (newPrice && !isNaN(Number(newPrice))) {
-                              updateTicketPrice(tt.id, Number(newPrice) * 100);
-                            }
-                          }}
+                          onClick={() => setDeleteTypeTarget(tt)}
+                          title="Delete ticket type"
+                        >
+                          <Trash2 className="w-4 h-4 text-red-600" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => openEditTicketModal(tt)}
+                          title="Edit ticket type"
                         >
                           <Pencil className="w-4 h-4" />
                         </Button>
-                      )}
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
             </CardContent>
           </Card>
+
+          {editTicketModalOpen && editingTicketType && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+                <div className="p-6 space-y-4">
+                  <h2 className="text-xl font-bold">Edit Ticket Type</h2>
+                  
+                  <div className="space-y-2">
+                    <Label>Name</Label>
+                    <Input
+                      value={editingTicketType.name}
+                      onChange={(e) => setEditingTicketType({ ...editingTicketType, name: e.target.value })}
+                      placeholder="Ticket name"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Price (₦)</Label>
+                    <Input
+                      type="number"
+                      step="100"
+                      value={editingTicketType.price}
+                      onChange={(e) => setEditingTicketType({ ...editingTicketType, price: Number(e.target.value) })}
+                      placeholder="0"
+                      disabled={editingTicketType.soldCount > 0}
+                    />
+                    {editingTicketType.soldCount > 0 && (
+                      <p className="text-xs text-muted-foreground">Price locked — tickets already sold</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Quantity Available</Label>
+                    <Input
+                      type="number"
+                      value={editingTicketType.quantity}
+                      onChange={(e) => setEditingTicketType({ ...editingTicketType, quantity: Number(e.target.value) })}
+                      placeholder="100"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Group Size</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={editingTicketType.groupSize}
+                      onChange={(e) => setEditingTicketType({ ...editingTicketType, groupSize: Number(e.target.value) })}
+                      placeholder="1"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Number of people this ticket admits
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Sales Start</Label>
+                    <Input
+                      type="datetime-local"
+                      value={editingTicketType.salesStart}
+                      onChange={(e) => setEditingTicketType({ ...editingTicketType, salesStart: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Sales End</Label>
+                    <Input
+                      type="datetime-local"
+                      value={editingTicketType.salesEnd}
+                      onChange={(e) => setEditingTicketType({ ...editingTicketType, salesEnd: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Ticket Image</Label>
+                    <TicketImageUpload 
+                      value={editingTicketType.image || ""} 
+                      onChange={(url) => setEditingTicketType({ ...editingTicketType, image: url })} 
+                    />
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <Button 
+                      onClick={() => updateTicketType({
+                        id: editingTicketType.id,
+                        name: editingTicketType.name,
+                        price: editingTicketType.price,
+                        quantity: editingTicketType.quantity,
+                        groupSize: editingTicketType.groupSize,
+                        salesStart: editingTicketType.salesStart,
+                        salesEnd: editingTicketType.salesEnd,
+                        image: editingTicketType.image,
+                      })} 
+                      disabled={savingTicketType}
+                    >
+                      {savingTicketType ? "Saving..." : "Save Changes"}
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        setEditTicketModalOpen(false);
+                        setEditingTicketType(null);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <Card>
             <CardHeader>
@@ -1447,17 +2239,39 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
 
           <Card className="lg:col-span-2">
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Attendees ({attendees.length})</CardTitle>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => window.open(`/api/attendees?eventId=${eventId}&format=csv`, "_blank")}
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Export CSV
-              </Button>
+              <CardTitle>Attendees ({attendeeTotal})</CardTitle>
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedPromoCode}
+                  onChange={(e) => { setSelectedPromoCode(e.target.value); setAttendeePage(1); }}
+                  className="border rounded-md px-3 py-2 text-sm"
+                >
+                  <option value="ALL">All Promo Codes</option>
+                  {discountCodes.map((code) => (
+                    <option key={code.id} value={code.code}>
+                      {code.code}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open(`/api/attendees?eventId=${eventId}&format=csv${selectedPromoCode !== "ALL" ? `&discountCode=${selectedPromoCode}` : ""}`, "_blank")}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Export CSV
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
+              <div className="mb-4">
+                <Input
+                  placeholder="Search by ticket ID, name, or email..."
+                  value={attendeeSearch}
+                  onChange={(e) => { setAttendeeSearch(e.target.value); setAttendeePage(1); }}
+                  className="max-w-sm"
+                />
+              </div>
               {loadingData ? (
                 <p className="text-muted-foreground">Loading...</p>
               ) : attendees.length === 0 ? (
@@ -1468,38 +2282,132 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
                     <thead>
                       <tr className="border-b">
                         <th className="text-left py-2">Ticket ID</th>
+                        <th className="text-left py-2">Buyer</th>
+                        <th className="text-left py-2">Phone</th>
                         <th className="text-left py-2">Type</th>
-                        <th className="text-left py-2">Email</th>
+                        <th className="text-left py-2">Group</th>
+                        <th className="text-left py-2">Amount</th>
+                        <th className="text-left py-2">Date</th>
                         <th className="text-left py-2">Status</th>
+                        <th className="text-left py-2 w-10"></th>
                       </tr>
                     </thead>
                     <tbody>
-                      {attendees.slice(0, 10).map((ticket) => (
+                      {attendees.map((ticket: any) => (
                         <tr key={ticket.id} className="border-b">
-                          <td className="py-2 font-mono">{ticket.ticketId}</td>
+                          <td className="py-2 font-mono text-xs">{ticket.ticketId}</td>
+                          <td className="py-2">
+                            <span className="font-medium">{ticket.order?.buyerName || ticket.owner?.name || "Guest"}</span>
+                            <br />
+                            <span className="text-xs text-muted-foreground">{ticket.order?.buyerEmail || ticket.owner?.email || "—"}</span>
+                          </td>
+                          <td className="py-2 text-sm">{ticket.order?.buyerPhone || "—"}</td>
                           <td className="py-2">{ticket.ticketType?.name}</td>
-                          <td className="py-2">{ticket.owner?.email || "Guest"}</td>
+                          <td className="py-2">
+                            {ticket.groupSize > 1 ? (
+                              <span className="text-sm">
+                                {ticket.checkedInCount || 0}/{ticket.groupSize}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </td>
+                          <td className="py-2 text-sm">
+                            {ticket.order?.amount ? `₦${(ticket.order.amount / 100).toLocaleString()}` : "—"}
+                          </td>
+                          <td className="py-2 text-xs text-muted-foreground">
+                            {ticket.order?.paidAt ? new Date(ticket.order.paidAt).toLocaleDateString() : "—"}
+                          </td>
                           <td className="py-2">
                             {ticket.isUsed ? (
-                              <span className="text-green-600">Used</span>
+                              <span className="text-green-600 text-xs">Used</span>
+                            ) : ticket.checkedInCount > 0 ? (
+                              <span className="text-yellow-600 text-xs">Partial</span>
                             ) : (
-                              <span className="text-muted-foreground">Not Used</span>
+                              <span className="text-muted-foreground text-xs">Not Used</span>
                             )}
+                          </td>
+                          <td className="py-2">
+                            <button
+                              onClick={() => setDeleteTicketTarget(ticket)}
+                              className="p-1 rounded hover:bg-red-100 text-red-600"
+                              title="Delete ticket"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                  {attendees.length > 10 && (
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Showing 10 of {attendees.length} attendees. Export CSV for full list.
-                    </p>
+                  {attendeeTotalPages > 1 && (
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                      <p className="text-sm text-muted-foreground">
+                        Page {attendeePage} of {attendeeTotalPages} ({attendeeTotal} total)
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setAttendeePage((p) => Math.max(1, p - 1))}
+                          disabled={attendeePage <= 1}
+                        >
+                          Previous
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setAttendeePage((p) => p + 1)}
+                          disabled={attendeePage >= attendeeTotalPages}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
             </CardContent>
           </Card>
         </div>
+
+        <AlertDialog open={!!deleteTicketTarget} onOpenChange={(open) => !open && setDeleteTicketTarget(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Ticket</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete ticket{" "}
+                <span className="font-mono font-semibold">{deleteTicketTarget?.ticketId}</span>?
+                This action cannot be undone. The ticket will no longer be valid for check-in.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deletingTicket}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteTicket} disabled={deletingTicket}>
+                {deletingTicket ? "Deleting..." : "Delete"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={!!deleteTypeTarget} onOpenChange={(open) => !open && setDeleteTypeTarget(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Ticket Type</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete the ticket type{" "}
+                <span className="font-semibold">{deleteTypeTarget?.name}</span>?
+                This action cannot be undone. It will no longer appear on your event page.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deletingType}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteTicketType} disabled={deletingType}>
+                {deletingType ? "Deleting..." : "Delete"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
     </div>
   );
