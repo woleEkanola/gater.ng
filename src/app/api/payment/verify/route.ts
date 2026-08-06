@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { generateQRCode, generateTicketId } from "@/lib/qr";
-import { sendTicketEmail } from "@/lib/email";
+import { sendTicketEmail, sendOrganizerSaleNotification } from "@/lib/email";
 
 interface PaystackVerifyResponse {
   status: boolean;
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
 
     const order = await prisma.order.findUnique({
       where: { id: orderId },
-      include: { event: { include: { ticketTypes: true } }, tickets: true },
+      include: { event: { include: { ticketTypes: true, organizer: { select: { name: true, image: true, email: true } } } }, tickets: true },
     });
 
     if (!order) {
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
         const qrCode = await generateQRCode(qrData);
 
         const ticket = await prisma.ticket.create({
-          data: { ticketId, ticketTypeId: td.ticketTypeId, ownerId: buyerId || null, orderId, qrCode },
+          data: { ticketId, ticketTypeId: td.ticketTypeId, ownerId: buyerId || null, orderId, groupSize: ticketType.groupSize, qrCode },
         });
 
         tickets.push({ id: ticket.id, ticketId: ticket.ticketId, qrCode });
@@ -117,6 +117,7 @@ export async function POST(request: NextRequest) {
     const buyerName = data.data?.metadata?.name || buyerEmail?.split("@")[0];
 
     if (buyerEmail) {
+      console.log(`[Verify] Sending ${tickets.length} ticket emails for order ${orderId}, phone: ${order.buyerPhone}, organizerId: ${order.event.organizerId}`);
       for (const ticket of tickets) {
         const ticketType = order.event.ticketTypes.find(
           (tt) => tt.id === ticketData.find((td: any) => td.ticketTypeId === tt.id)?.ticketTypeId
@@ -133,14 +134,45 @@ export async function POST(request: NextRequest) {
             day: "numeric",
           }),
           eventLocation: order.event.location || "TBD",
+          eventBanner: order.event.banner,
+          organizerName: order.event.organizer?.name,
+          organizerImage: order.event.organizer?.image,
           ticketId: ticket.ticketId,
           ticketType: ticketType?.name || "General",
           qrCode: ticket.qrCode,
           orderId: order.id,
           amount: (order.amount / 100).toString(),
+          discountCode: order.discountCode || undefined,
+          phone: order.buyerPhone,
+          eventId: order.eventId,
+          organizerId: order.event.organizerId,
         });
       }
       console.log(`Sent ${tickets.length} ticket emails for order ${orderId}`);
+
+      if (order.event.organizer?.email) {
+        for (const td of ticketData) {
+          const tt = order.event.ticketTypes.find((t: any) => t.id === td.ticketTypeId);
+          sendOrganizerSaleNotification({
+            organizerEmail: order.event.organizer.email,
+            organizerName: order.event.organizer.name || "Organizer",
+            eventTitle: order.event.title,
+            buyerName: buyerName || buyerEmail || "Customer",
+            buyerEmail: buyerEmail || "N/A",
+            ticketType: tt?.name || "General",
+            quantity: td.quantity,
+            amount: tt ? ((tt.price * td.quantity) / 100).toFixed(0) : "0",
+          }).catch((err) => console.error("Failed to send organizer notification:", err));
+        }
+      }
+    }
+
+    // Increment discount code usage
+    if (order.discountCode) {
+      await prisma.discountCode.updateMany({
+        where: { code: order.discountCode, eventId: order.eventId },
+        data: { usesCount: { increment: 1 } },
+      });
     }
 
     return NextResponse.json({

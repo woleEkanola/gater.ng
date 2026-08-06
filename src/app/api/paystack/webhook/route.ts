@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import prisma from "@/lib/prisma";
 import { generateQRCode, generateTicketId } from "@/lib/qr";
-import { sendTicketEmail } from "@/lib/email";
+import { sendTicketEmail, sendOrganizerSaleNotification } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
 
       const order = await prisma.order.findUnique({
         where: { id: orderId },
-        include: { event: { include: { ticketTypes: true } } },
+        include: { event: { include: { ticketTypes: true, organizer: { select: { name: true, email: true } } } } },
       });
 
       if (!order) {
@@ -99,6 +99,7 @@ export async function POST(request: NextRequest) {
       });
 
       if (buyer && buyer.email) {
+        console.log(`[Webhook] Sending ${tickets.length} ticket emails for order ${orderId}, phone: ${order.buyerPhone}, organizerId: ${order.event.organizerId}`);
         for (const ticket of tickets) {
           const ticketType = order.event.ticketTypes.find(
             (tt) => tt.id === ticketData.find((td: { ticketTypeId: string }) => td.ticketTypeId === tt.id)?.ticketTypeId
@@ -120,10 +121,68 @@ export async function POST(request: NextRequest) {
             qrCode: ticket.qrCode,
             orderId: order.id,
             amount: order.amount.toString(),
+            phone: order.buyerPhone,
+            eventId: order.eventId,
+            organizerId: order.event.organizerId,
           });
         }
         console.log(`Sent ${tickets.length} ticket emails for order ${orderId}`);
+
+        if (order.event.organizer?.email) {
+          for (const td of ticketData) {
+            const tt = order.event.ticketTypes.find((t: any) => t.id === td.ticketTypeId);
+            sendOrganizerSaleNotification({
+              organizerEmail: order.event.organizer.email,
+              organizerName: order.event.organizer.name || "Organizer",
+              eventTitle: order.event.title,
+              buyerName: buyer.name || buyer.email.split("@")[0],
+              buyerEmail: buyer.email,
+              ticketType: tt?.name || "General",
+              quantity: td.quantity,
+              amount: tt ? ((tt.price * td.quantity) / 100).toFixed(0) : "0",
+            }).catch((err) => console.error("Failed to send organizer notification:", err));
+          }
+        }
       }
+    }
+
+    if (eventType === "transfer.success") {
+      const { reference, amount, recipient, createdAt } = data;
+
+      if (!recipient?.details?.account_number) {
+        return NextResponse.json({ message: "No account details in transfer webhook" });
+      }
+
+      const user = await prisma.user.findFirst({
+        where: {
+          payoutAccountNumber: recipient.details.account_number,
+        },
+      });
+
+      if (!user) {
+        console.log(`[Webhook] transfer.success: no user found for account ${recipient.details.account_number}`);
+        return NextResponse.json({ message: "No matching user" });
+      }
+
+      const existing = await prisma.payoutRecord.findUnique({
+        where: { reference },
+      });
+
+      if (existing) {
+        return NextResponse.json({ message: "Payout already recorded" });
+      }
+
+      await prisma.payoutRecord.create({
+        data: {
+          userId: user.id,
+          amount,
+          reference,
+          status: "success",
+          paidAt: createdAt ? new Date(createdAt) : new Date(),
+        },
+      });
+
+      console.log(`[Webhook] Recorded payout: ₦${(amount / 100).toFixed(0)} to ${user.email}`);
     }
 
     return NextResponse.json({ message: "Webhook processed" });

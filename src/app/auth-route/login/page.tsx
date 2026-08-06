@@ -18,6 +18,25 @@ export default function LoginPage() {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [mfaRequired, setMfaRequired] = useState(false);
   const [mfaCode, setMfaCode] = useState("");
+  const [notVerified, setNotVerified] = useState(false);
+
+  const handleResendVerification = async () => {
+    try {
+      const res = await fetch("/api/auth/verify-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: formData.email }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: "Success", description: "Verification email resent" });
+      } else {
+        toast({ title: "Error", description: data.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to resend", variant: "destructive" });
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +64,10 @@ export default function LoginPage() {
           redirect: false,
         });
 
-        if (result?.error) {
+        if (result?.error === "EMAIL_NOT_VERIFIED") {
+          setNotVerified(true);
+          setMfaRequired(false);
+        } else if (result?.error) {
           toast({ title: "Error", description: result.error, variant: "destructive" });
         } else {
           router.push("/dashboard");
@@ -60,6 +82,8 @@ export default function LoginPage() {
 
         if (result?.error === "MFA_REQUIRED") {
           setMfaRequired(true);
+        } else if (result?.error === "EMAIL_NOT_VERIFIED") {
+          setNotVerified(true);
         } else if (result?.error) {
           toast({ title: "Error", description: result.error, variant: "destructive" });
         } else {
@@ -84,6 +108,17 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {notVerified && (
+            <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-sm font-medium text-amber-800 mb-2">Email not verified</p>
+              <p className="text-xs text-amber-700 mb-3">
+                Please check your email and click the verification link before signing in.
+              </p>
+              <Button variant="outline" size="sm" onClick={handleResendVerification} className="w-full">
+                Resend verification email
+              </Button>
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             {!mfaRequired ? (
               <>

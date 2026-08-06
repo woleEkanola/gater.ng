@@ -126,7 +126,7 @@ export function BannerCropUpload({ value, onChange, className }: BannerCropUploa
     <div className={cn("space-y-4", className)}>
       {/* Existing banner preview */}
       {value && (
-        <div className="relative w-full rounded-lg overflow-hidden border group" style={{ aspectRatio: "2/1" }}>
+          <div className="relative w-full rounded-lg overflow-hidden border group" style={{ aspectRatio: "5/2" }}>
           <img src={value} alt="Banner" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity gap-3">
             <label className="cursor-pointer px-4 py-2 bg-white rounded-lg text-sm font-medium hover:bg-gray-100 flex items-center gap-2">
@@ -156,10 +156,10 @@ export function BannerCropUpload({ value, onChange, className }: BannerCropUploa
         <label className={cn(
           "flex flex-col items-center justify-center w-full border-2 border-dashed rounded-lg transition-colors cursor-pointer hover:border-primary",
           "p-8"
-        )} style={{ aspectRatio: "2/1" }}>
+        )} style={{ aspectRatio: "5/2" }}>
           <Upload className="w-8 h-8 text-muted-foreground mb-2" />
           <span className="text-sm text-muted-foreground">Click to upload banner</span>
-          <span className="text-xs text-muted-foreground mt-1">Recommended: 1200x600px (2:1 ratio)</span>
+          <span className="text-xs text-muted-foreground mt-1">Recommended: 1000x400px (5:2 ratio)</span>
           <input
             type="file"
             accept="image/*"
@@ -194,7 +194,7 @@ export function BannerCropUpload({ value, onChange, className }: BannerCropUploa
                 image={imageSrc}
                 crop={crop}
                 zoom={zoom}
-                aspect={2}
+                aspect={2.5}
                 onCropChange={setCrop}
                 onCropComplete={onCropComplete}
                 onZoomChange={setZoom}

@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { eventId, name, price, quantity, salesStart, salesEnd, image } = body;
+    const { eventId, name, price, quantity, groupSize, salesStart, salesEnd, image } = body;
 
     if (!eventId || !name || price === undefined || !quantity) {
       return NextResponse.json(
@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
         name,
         price: Math.round(price * 100),
         quantity,
+        groupSize: groupSize ? parseInt(groupSize) : 1,
         ...(image && { image }),
         ...(salesStart && { salesStart: new Date(salesStart) }),
         ...(salesEnd && { salesEnd: new Date(salesEnd) }),
@@ -68,10 +69,10 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { id, price } = body;
+    const { id, name, price, quantity, groupSize, image, salesStart, salesEnd } = body;
 
-    if (!id || price === undefined) {
-      return NextResponse.json({ error: "ID and price required" }, { status: 400 });
+    if (!id) {
+      return NextResponse.json({ error: "ID required" }, { status: 400 });
     }
 
     const ticketType = await prisma.ticketType.findUnique({
@@ -95,13 +96,31 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    if (ticketType.soldCount > 0) {
-      return NextResponse.json({ error: "Cannot update price - tickets already sold" }, { status: 400 });
+    const updateData: any = {};
+
+    if (name !== undefined) updateData.name = name;
+    if (groupSize !== undefined) updateData.groupSize = parseInt(groupSize);
+    if (image !== undefined) updateData.image = image;
+    if (salesStart !== undefined) updateData.salesStart = salesStart ? new Date(salesStart) : null;
+    if (salesEnd !== undefined) updateData.salesEnd = salesEnd ? new Date(salesEnd) : null;
+
+    if (quantity !== undefined) {
+      if (quantity < ticketType.soldCount) {
+        return NextResponse.json({ error: "Quantity cannot be less than sold count" }, { status: 400 });
+      }
+      updateData.quantity = parseInt(quantity);
+    }
+
+    if (price !== undefined) {
+      if (ticketType.soldCount > 0) {
+        return NextResponse.json({ error: "Cannot update price - tickets already sold" }, { status: 400 });
+      }
+      updateData.price = Math.round(price * 100);
     }
 
     const updated = await prisma.ticketType.update({
       where: { id },
-      data: { price },
+      data: updateData,
     });
 
     return NextResponse.json(updated);
@@ -121,7 +140,7 @@ export async function GET(request: NextRequest) {
     }
 
     const ticketTypes = await prisma.ticketType.findMany({
-      where: { eventId },
+      where: { eventId, deletedAt: null },
       orderBy: { price: "asc" },
     });
 

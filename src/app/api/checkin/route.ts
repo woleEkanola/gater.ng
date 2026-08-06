@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { ticketId, eventId } = body;
+    const { ticketId, eventId, count } = body;
 
     if (!ticketId) {
       return NextResponse.json({ error: "Ticket ID is required" }, { status: 400 });
@@ -30,8 +30,20 @@ export async function POST(request: NextRequest) {
       ? await prisma.event.findUnique({ where: { id: eventId } })
       : null;
 
-    if (event && event.organizerId !== user.id && user.role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (event) {
+      const isOrganizer = event.organizerId === user.id;
+      const isAdmin = user.role === "ADMIN" || user.role === "SUPERADMIN";
+      const isStaff = await prisma.eventStaff.findFirst({
+        where: {
+          eventId: event.id,
+          userId: user.id,
+          status: "ACTIVE",
+        },
+      });
+
+      if (!isOrganizer && !isAdmin && !isStaff) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
     }
 
     const ticket = await prisma.ticket.findUnique({
@@ -47,12 +59,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Ticket not found", status: "INVALID" }, { status: 404 });
     }
 
-    if (ticket.isUsed) {
+    if (ticket.deletedAt) {
+      return NextResponse.json({ error: "Ticket has been cancelled", status: "INVALID" }, { status: 400 });
+    }
+
+    const checkInCount = count ? parseInt(count) : 1;
+    const remaining = ticket.groupSize - ticket.checkedInCount;
+
+    if (remaining <= 0) {
       return NextResponse.json({
-        error: "Ticket already used",
+        error: "Ticket fully checked in",
         status: "ALREADY_USED",
-        usedAt: ticket.usedAt,
-        usedBy: ticket.usedBy,
+        checkedInCount: ticket.checkedInCount,
+        groupSize: ticket.groupSize,
+      }, { status: 400 });
+    }
+
+    if (checkInCount > remaining) {
+      return NextResponse.json({
+        error: `Only ${remaining} admission${remaining === 1 ? "" : "s"} remaining on this ticket`,
+        status: "PARTIAL",
+        remaining,
+        groupSize: ticket.groupSize,
+        checkedInCount: ticket.checkedInCount,
       }, { status: 400 });
     }
 
@@ -63,25 +92,33 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    const updatedTicket = await prisma.ticket.update({
+    const newCheckedInCount = ticket.checkedInCount + checkInCount;
+    const isFullyUsed = newCheckedInCount >= ticket.groupSize;
+
+    await prisma.ticket.update({
       where: { id: ticket.id },
       data: {
-        isUsed: true,
-        usedAt: new Date(),
-        usedBy: user.id,
+        checkedInCount: newCheckedInCount,
+        isUsed: isFullyUsed,
+        ...(isFullyUsed && { usedAt: new Date(), usedBy: user.id }),
       },
     });
 
-    await prisma.checkIn.create({
-      data: {
-        ticketId: ticket.id,
-        checkedBy: user.id,
-      },
-    });
+    for (let i = 0; i < checkInCount; i++) {
+      await prisma.checkIn.create({
+        data: {
+          ticketId: ticket.id,
+          checkedBy: user.id,
+        },
+      });
+    }
 
     return NextResponse.json({
       message: "Check-in successful",
       status: "VALID",
+      checkedInCount: newCheckedInCount,
+      groupSize: ticket.groupSize,
+      discountCode: ticket.order?.discountCode || null,
       ticket: {
         ticketId: ticket.ticketId,
         ticketType: ticket.ticketType.name,
@@ -105,6 +142,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const eventId = searchParams.get("eventId");
+    const mine = searchParams.get("mine") === "true";
 
     if (!eventId) {
       return NextResponse.json({ error: "Event ID is required" }, { status: 400 });
@@ -120,7 +158,21 @@ export async function GET(request: NextRequest) {
 
     const event = await prisma.event.findUnique({ where: { id: eventId } });
 
-    if (!event || (event.organizerId !== user.id && user.role !== "ADMIN")) {
+    if (!event) {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+
+    const isOrganizer = event.organizerId === user.id;
+    const isAdmin = user.role === "ADMIN" || user.role === "SUPERADMIN";
+    const isStaff = await prisma.eventStaff.findFirst({
+      where: {
+        eventId: event.id,
+        userId: user.id,
+        status: "ACTIVE",
+      },
+    });
+
+    if (!isOrganizer && !isAdmin && !isStaff) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -128,7 +180,9 @@ export async function GET(request: NextRequest) {
       where: {
         ticket: {
           ticketType: { eventId },
+          deletedAt: null,
         },
+        ...(mine ? { checkedBy: user.id } : {}),
       },
       include: {
         ticket: {
@@ -144,14 +198,26 @@ export async function GET(request: NextRequest) {
 
     const totalTickets = await prisma.ticket.count({
       where: {
+        deletedAt: null,
         ticketType: { eventId },
         order: { status: "PAID" },
       },
     });
 
+    const totalAdmissions = await prisma.ticket.aggregate({
+      where: {
+        deletedAt: null,
+        ticketType: { eventId },
+        order: { status: "PAID" },
+      },
+      _sum: { groupSize: true },
+    });
+
     return NextResponse.json({
       totalTickets,
+      totalAdmissions: totalAdmissions._sum.groupSize || 0,
       checkedIn: checkIns.length,
+      myCheckInCount: mine ? checkIns.length : undefined,
       checkIns,
     });
   } catch (error) {

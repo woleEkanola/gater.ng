@@ -11,9 +11,10 @@ import { WishlistButton } from "@/components/wishlist-button";
 import { FollowButton } from "@/components/follow-button";
 import { ResponsiveHeader } from "@/components/responsive-header";
 import { Footer } from "@/components/footer";
-import { AlertCircle, Calendar, MapPin, User, Globe, Users, Tag, HelpCircle, Image as ImageIcon } from "lucide-react";
+import { AlertCircle, Calendar, MapPin, User, Globe, Users, Tag, HelpCircle, Image as ImageIcon, ExternalLink } from "lucide-react";
 import { FaqAccordion } from "@/components/faq-accordion";
 import { SpeakerGrid } from "@/components/speaker-modal";
+import { EventMapDisplay } from "@/components/event-map-display";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +61,9 @@ async function getEvent(slug: string) {
       description: true,
       banner: true,
       location: true,
+      latitude: true,
+      longitude: true,
+      showMap: true,
       dateTime: true,
       isPublished: true,
       isOnline: true,
@@ -89,7 +93,7 @@ async function getEvent(slug: string) {
           payoutAccountName: true,
         } 
       },
-      ticketTypes: { orderBy: { price: "asc" } },
+      ticketTypes: { where: { deletedAt: null }, orderBy: { price: "asc" } },
       faqs: { orderBy: { createdAt: "asc" } },
       tags: true,
       gallery: { orderBy: { createdAt: "asc" } },
@@ -129,6 +133,12 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
     (tt) => event.accessMode === "INVITES" || (tt.price > 0 && !organizerHasPayout)
   );
 
+  const googleMapsUrl = event.latitude && event.longitude
+    ? `https://www.google.com/maps/search/?api=1&query=${event.latitude},${event.longitude}`
+    : event.location
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`
+      : null;
+
   const session = await getServerSession(authOptions);
 
   return (
@@ -137,7 +147,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
 
       <main>
         {event.banner && (
-          <div className="w-full h-[200px] md:h-[300px] lg:h-[400px] relative mb-6 md:mb-8 bg-muted">
+          <div className="w-full aspect-[5/2] relative mb-6 md:mb-8 bg-muted">
             <img
               src={event.banner}
               alt={event.title}
@@ -189,9 +199,44 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
                           ? "Location shown to registered attendees"
                           : event.location || "TBA"}
                     </span>
+                    {!event.isOnline && !event.hideAddress && googleMapsUrl && (
+                      <a
+                        href={googleMapsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-sm text-primary hover:underline ml-2"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        Open in Google Maps
+                      </a>
+                    )}
                   </div>
                 </div>
               </div>
+
+              {event.showMap && event.latitude && event.longitude && !event.hideAddress && (
+                <>
+                  <div className="rounded-lg overflow-hidden border">
+                    <EventMapDisplay
+                      location={event.location || "Event Location"}
+                      latitude={event.latitude}
+                      longitude={event.longitude}
+                      height={250}
+                    />
+                  </div>
+                  {googleMapsUrl && (
+                    <a
+                      href={googleMapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 mt-2 px-4 py-2 border rounded-md text-sm font-medium hover:bg-gray-50"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      Open in Google Maps
+                    </a>
+                  )}
+                </>
+              )}
 
               {event.targetAudience && (
                 <div className="flex items-start gap-2 p-4 bg-rose-50 border border-rose-100 rounded-lg">
@@ -272,7 +317,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
             </div>
 
             <div className="space-y-6">
-              <Card className="sticky top-4">
+              <Card className="lg:sticky top-4">
                 <CardHeader>
                   <CardTitle>{event.accessMode === "INVITES" ? "Invitation event" : "Tickets"}</CardTitle>
                 </CardHeader>
@@ -310,9 +355,11 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
                           )}
                           <div>
                             <p className="font-medium">{ticketType.name}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {ticketType.quantity - ticketType.soldCount} remaining
-                            </p>
+                  {session?.user && (
+                    <p className="text-sm text-muted-foreground">
+                      {ticketType.quantity - ticketType.soldCount} remaining
+                    </p>
+                  )}
                           </div>
                         </div>
                         <div className="text-right">

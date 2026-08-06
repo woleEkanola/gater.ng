@@ -1,8 +1,27 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Calendar, Ticket, BarChart, Smartphone, CreditCard, Users, ArrowRight, Check } from "lucide-react";
+import { Calendar, Ticket, BarChart, Smartphone, CreditCard, Users, ArrowRight, Check, MapPin, Star } from "lucide-react";
+import prisma from "@/lib/prisma";
+import { formatCurrency, formatShortDate } from "@/lib/utils";
 
-export default function OrganizerPage() {
+export const dynamic = "force-dynamic";
+
+async function getFeaturedEvents() {
+  const events = await prisma.event.findMany({
+    where: { isFeatured: true, isPublished: true, dateTime: { gte: new Date() } },
+    include: { ticketTypes: { where: { deletedAt: null } } },
+    orderBy: { dateTime: "asc" },
+    take: 6,
+  });
+
+  return events.map((event) => ({
+    ...event,
+    minPrice: Math.min(...event.ticketTypes.map((t) => t.price)),
+  }));
+}
+
+export default async function OrganizerPage() {
+  const featuredEvents = await getFeaturedEvents();
   return (
     <div className="min-h-screen">
       <header className="border-b">
@@ -53,6 +72,66 @@ export default function OrganizerPage() {
             </Link>
           </div>
         </div>
+
+        {featuredEvents.length > 0 && (
+          <section className="pb-16">
+            <div className="text-center mb-8">
+              <div className="flex items-center justify-center gap-2">
+                <Star className="w-6 h-6 text-amber-500 fill-amber-500" />
+                <h2 className="text-2xl font-bold">Featured Events</h2>
+              </div>
+            </div>
+            <div className="flex flex-wrap justify-center gap-6">
+              {featuredEvents.map((event) => (
+                <Link
+                  key={event.id}
+                  href={`/events/${event.slug}`}
+                  className="group bg-white rounded-lg border overflow-hidden hover:shadow-lg transition-shadow w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] max-w-sm"
+                >
+                  <div className="aspect-[5/2] bg-gray-100 overflow-hidden">
+                    {event.banner ? (
+                      <img
+                        src={event.banner}
+                        alt={event.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Calendar className="w-8 h-8 text-gray-300" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-4 space-y-2">
+                    <h3 className="font-semibold line-clamp-2 group-hover:text-primary transition-colors">
+                      {event.title}
+                    </h3>
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <Calendar className="w-4 h-4" />
+                      {formatShortDate(event.dateTime)}
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <MapPin className="w-4 h-4" />
+                      <span className="truncate">{event.location || "Online"}</span>
+                    </div>
+                    <div className="flex items-center justify-between pt-2 border-t">
+                      <span className="font-semibold">
+                        {event.minPrice === 0 ? "Free" : formatCurrency(event.minPrice)}
+                      </span>
+                      <span className="text-xs text-primary font-medium">
+                        View Event →
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+            <div className="text-center mt-6">
+              <Link href="/browse" className="text-primary hover:opacity-80 inline-flex items-center gap-1 text-sm">
+                View all events <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </section>
+        )}
 
         <div id="features" className="py-16">
           <h2 className="text-3xl font-bold text-center mb-12">

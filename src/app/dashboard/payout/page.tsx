@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { BankSelect } from "@/components/ui/bank-select";
-import { Building2, ChevronLeft } from "lucide-react";
+import { Building2, ChevronLeft, MessageCircle, Clock, CheckCircle, DollarSign, RefreshCw } from "lucide-react";
 
 const payoutSchema = z.object({
   payoutBankCode: z.string().min(3, "Bank code required"),
@@ -27,6 +27,28 @@ export default function PayoutSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [banks, setBanks] = useState<{ name: string; code: string }[]>([]);
   const [selectedBankName, setSelectedBankName] = useState("");
+  const [payoutHistory, setPayoutHistory] = useState<any>(null);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const res = await fetch("/api/payout/sync", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: "Sync complete", description: `${data.newRecords} new payout record(s) found` });
+        const historyRes = await fetch("/api/payout/history");
+        if (historyRes.ok) setPayoutHistory(await historyRes.json());
+      } else {
+        toast({ title: "Error", description: data.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Sync failed", variant: "destructive" });
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const {
     register,
@@ -58,6 +80,19 @@ export default function PayoutSettingsPage() {
     }
     fetchSettings();
   }, [setValue]);
+
+  useEffect(() => {
+    async function fetchHistory() {
+      try {
+        const res = await fetch("/api/payout/history");
+        if (res.ok) {
+          setPayoutHistory(await res.json());
+        }
+      } catch {}
+      setLoadingHistory(false);
+    }
+    fetchHistory();
+  }, []);
 
   const onSubmit = async (data: PayoutFormData) => {
     setSaving(true);
@@ -160,6 +195,129 @@ export default function PayoutSettingsPage() {
             {saving ? "Saving..." : "Save Payout Settings"}
           </Button>
         </form>
+
+        <div className="mt-8 space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <DollarSign className="w-5 h-5" />
+              Payout History
+            </h2>
+            <Button variant="outline" size="sm" onClick={handleSync} disabled={syncing}>
+              <RefreshCw className={`w-4 h-4 mr-1 ${syncing ? "animate-spin" : ""}`} />
+              {syncing ? "Syncing..." : "Sync from Paystack"}
+            </Button>
+          </div>
+
+          {loadingHistory ? (
+            <p className="text-muted-foreground text-sm">Loading...</p>
+          ) : payoutHistory ? (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-bold">₦{payoutHistory.totalRevenue.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">{payoutHistory.totalOrders} paid orders</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Your Share ({payoutHistory.feePercent}% fee)</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-bold text-green-600">₦{payoutHistory.netRevenue.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">After {payoutHistory.feePercent}% platform fee</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                      <CheckCircle className="w-3.5 h-3.5 text-green-600" />
+                      Settled
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-bold text-green-600">₦{payoutHistory.totalSettled.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">Paid by Paystack</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5 text-amber-600" />
+                      Pending
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-bold text-amber-600">₦{payoutHistory.totalPending.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">Awaiting settlement</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {payoutHistory.payoutRecords.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Recent Settlements</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <table className="w-full text-sm">
+                      <thead className="border-b">
+                        <tr className="text-left">
+                          <th className="p-3 font-medium">Date</th>
+                          <th className="p-3 font-medium">Amount</th>
+                          <th className="p-3 font-medium">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {payoutHistory.payoutRecords.map((r: any) => (
+                          <tr key={r.id} className="border-b">
+                            <td className="p-3 text-muted-foreground">
+                              {new Date(r.paidAt).toLocaleDateString()}
+                            </td>
+                            <td className="p-3 font-medium">
+                              ₦{(r.amount / 100).toLocaleString()}
+                            </td>
+                            <td className="p-3">
+                              <span className="text-green-600 text-xs bg-green-50 px-2 py-1 rounded-full">
+                                Paid
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </CardContent>
+                </Card>
+              )}
+            </>
+          ) : (
+            <p className="text-muted-foreground text-sm">Unable to load payout data</p>
+          )}
+        </div>
+
+        <div className="mt-8 pt-8 border-t">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MessageCircle className="w-5 h-5" />
+                WhatsApp Integration
+              </CardTitle>
+              <CardDescription>
+                Send ticket confirmations to buyers via WhatsApp
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link href="/dashboard/whatsapp">
+                <Button variant="outline" className="w-full">
+                  Manage WhatsApp Settings
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

@@ -1,0 +1,63 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import prisma from "@/lib/prisma";
+import { getConnectionState } from "@/lib/evolution-api";
+
+export async function GET(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email! },
+      select: { id: true, whatsappInstanceName: true, whatsappConnected: true, whatsappPhone: true },
+    });
+
+    if (!user?.whatsappInstanceName) {
+      return NextResponse.json({
+        connected: false,
+        phone: null,
+        instanceExists: false,
+      });
+    }
+
+    const result = await getConnectionState(user.whatsappInstanceName);
+
+    if (!result.success) {
+      return NextResponse.json({
+        connected: user.whatsappConnected,
+        phone: user.whatsappPhone,
+        instanceExists: true,
+        error: result.error,
+      });
+    }
+
+    const wasConnected = user.whatsappConnected;
+
+    if (result.connected && (!wasConnected || result.phone !== user.whatsappPhone)) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { whatsappConnected: true, whatsappPhone: result.phone || user.whatsappPhone },
+      });
+    } else if (!result.connected && wasConnected) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { whatsappConnected: false, whatsappPhone: null },
+      });
+    }
+
+    return NextResponse.json({
+      connected: result.connected,
+      phone: result.phone || null,
+      instanceExists: true,
+      state: result.state,
+      changed: wasConnected !== result.connected,
+    });
+  } catch (error: any) {
+    console.error("Error checking WhatsApp status:", error);
+    return NextResponse.json({ error: error.message, connected: false }, { status: 500 });
+  }
+}

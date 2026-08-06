@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
       include: {
         event: { include: { ticketTypes: true } },
         tickets: {
+          where: { deletedAt: null },
           include: {
             ticketType: {
               select: {
