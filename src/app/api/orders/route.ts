@@ -34,6 +34,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
 
+    if (event.accessMode === "INVITES") {
+      return NextResponse.json({ error: "This event uses invitations instead of tickets" }, { status: 400 });
+    }
+
     console.log("[API /orders] POST - event found:", event.id, event.slug, event.title, "isPublished:", event.isPublished);
 
     if (event.requireEmail !== false && (!email || !email.trim())) {
@@ -223,7 +227,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       orderId: order.id,
-      amount: totalAmount,
+      amount: finalAmount,
       email,
       name,
       eventTitle: event.title,

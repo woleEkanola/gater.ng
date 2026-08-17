@@ -116,12 +116,17 @@ export async function POST(request: NextRequest) {
     const { 
       title, description, banner, location, dateTime, isPublished,
       isOnline, streamingLink, category, targetAudience, tagIds,
-      showMap, latitude, longitude, requireEmail, requirePhone
-    } = body;
+       showMap, latitude, longitude, requireEmail, requirePhone
+       , accessMode
+     } = body;
 
-    if (!title || !dateTime) {
+     if (!title || !dateTime) {
       return NextResponse.json({ error: "Title and date are required" }, { status: 400 });
-    }
+     }
+
+     if (accessMode !== undefined && !["TICKETS", "INVITES", "BOTH"].includes(accessMode)) {
+       return NextResponse.json({ error: "Invalid access mode" }, { status: 400 });
+     }
 
     // For online events, location is optional; for offline, location is required
     if (!isOnline && !location) {
@@ -161,7 +166,8 @@ export async function POST(request: NextRequest) {
         latitude: latitude ? parseFloat(latitude) : null,
         longitude: longitude ? parseFloat(longitude) : null,
         requireEmail: requireEmail !== undefined ? requireEmail : true,
-        requirePhone: requirePhone !== undefined ? requirePhone : false,
+         requirePhone: requirePhone !== undefined ? requirePhone : false,
+         accessMode: accessMode || "TICKETS",
         tags: tagIds?.length ? { connect: tagIds.map((id: string) => ({ id })) } : undefined,
       },
       include: {

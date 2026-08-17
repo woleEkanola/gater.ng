@@ -21,46 +21,91 @@ enum OrderStatus {
   REFUNDED
 }
 
+enum EventAccessMode {
+  TICKETS
+  INVITES
+  BOTH
+}
+
+enum InviteAccessMode {
+  OPEN_RSVP
+  TOKENIZED
+}
+
+enum InviteStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
+  REVOKED
+}
+
+enum InviteeType {
+  PRIMARY
+  PLUS_ONE
+}
+
+enum RsvpStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+enum GuestAdmissionStatus {
+  NOT_ADMITTED
+  ADMITTED
+}
+
+enum InvitationChannel {
+  EMAIL
+  WHATSAPP
+}
+
+enum InvitationDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  password      String
-  name          String?
-  image         String?
-  bio           String?
-  website       String?
-  twitter       String?
-  instagram     String?
-  facebook      String?
-  role          Role      @default(ATTENDEE)
-  defaultDashboard String  @default("organizer")
-  isActive     Boolean   @default(true)
-  emailVerified DateTime?
-  verificationToken String?
+  id                      String    @id @default(cuid())
+  email                   String    @unique
+  password                String
+  name                    String?
+  image                   String?
+  bio                     String?
+  website                 String?
+  twitter                 String?
+  instagram               String?
+  facebook                String?
+  role                    Role      @default(ATTENDEE)
+  defaultDashboard        String    @default("organizer")
+  isActive                Boolean   @default(true)
+  emailVerified           DateTime?
+  verificationToken       String?
   verificationTokenExpiry DateTime?
-  mfaEnabled    Boolean   @default(false)
-  mfaSecret    String?
-  resetToken       String?
-  resetTokenExpiry DateTime?
-  
-  payoutBankCode           String?
-  payoutBankName           String?
-  payoutAccountNumber      String?
-  payoutAccountName       String?
-  paystackSubaccountCode  String?
+  mfaEnabled              Boolean   @default(false)
+  mfaSecret               String?
+  resetToken              String?
+  resetTokenExpiry        DateTime?
+
+  payoutBankCode         String?
+  payoutBankName         String?
+  payoutAccountNumber    String?
+  payoutAccountName      String?
+  paystackSubaccountCode String?
   paystackSettlementBank String?
-  transactionFeePercent   Float?   @default(5.0)
-  
-  whatsappInstanceName   String?
-  whatsappConnected      Boolean   @default(false)
-  whatsappPhone          String?
-  
-  checkinOtp             String?
-  checkinOtpExpiry       DateTime?
-  phone                  String?
-  
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  transactionFeePercent  Float?  @default(5.0)
+
+  whatsappInstanceName String?
+  whatsappConnected    Boolean @default(false)
+  whatsappPhone        String?
+
+  checkinOtp       String?
+  checkinOtpExpiry DateTime?
+  phone            String?
+
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   accounts      Account[]
   sessions      Session[]
   events        Event[]
@@ -68,27 +113,28 @@ model User {
   tickets       Ticket[]
   checkIns      CheckIn[]
   payoutRecords PayoutRecord[]
-  
-  following     Follow[]  @relation("Following")
-  followers     Follow[]  @relation("Follower")
-  wishlist      Wishlist[]
-  eventFollows EventFollow[]
-  eventStaff   EventStaff[]
+
+  following       Follow[]         @relation("Following")
+  followers       Follow[]         @relation("Follower")
+  wishlist        Wishlist[]
+  eventFollows    EventFollow[]
+  eventStaff      EventStaff[]
+  guestAdmissions GuestAdmission[]
 }
 
 model Account {
-  id                 String  @id @default(cuid())
-  userId             String
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String? @db.Text
-  access_token       String? @db.Text
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String? @db.Text
-  session_state      String?
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -112,52 +158,55 @@ model VerificationToken {
 }
 
 model Event {
-  id          String    @id @default(cuid())
-  slug        String    @unique
-  title       String
-  description String?
-  banner      String?
-  location    String?
-  latitude    Float?
-  longitude   Float?
-  showMap     Boolean   @default(false)
-  dateTime    DateTime
-  isPublished Boolean   @default(false)
-  isFeatured  Boolean   @default(false)
-  isOnline         Boolean   @default(false)
-  streamingLink    String?
-  accessInstructions String?  // Instructions for attendees on how to access the event
-  category         String?
-  targetAudience   String?
-  highlights       String?
-  hideAddress      Boolean   @default(false)
-  hideStreamingLink Boolean @default(false)
-  speakerLabel  String?   @default("Speakers")
-  contactEmail   String?
-  contactPhone  String?
-  websiteUrl    String?
-  twitterUrl    String?
-  facebookUrl   String?
-  instagramUrl  String?
-  youtubeUrl    String?
-  linkedinUrl   String?
-  requireEmail  Boolean   @default(true)
-  requirePhone  Boolean   @default(false)
-  organizerId String
-  organizer   User      @relation(fields: [organizerId], references: [id], onDelete: Cascade)
+  id                 String          @id @default(cuid())
+  slug               String          @unique
+  title              String
+  description        String?
+  banner             String?
+  location           String?
+  latitude           Float?
+  longitude          Float?
+  showMap            Boolean         @default(false)
+  dateTime           DateTime
+  isPublished        Boolean         @default(false)
+  isFeatured         Boolean         @default(false)
+  isOnline           Boolean         @default(false)
+  streamingLink      String?
+  accessInstructions String? // Instructions for attendees on how to access the event
+  category           String?
+  targetAudience     String?
+  highlights         String?
+  hideAddress        Boolean         @default(false)
+  hideStreamingLink  Boolean         @default(false)
+  speakerLabel       String?         @default("Speakers")
+  contactEmail       String?
+  contactPhone       String?
+  websiteUrl         String?
+  twitterUrl         String?
+  facebookUrl        String?
+  instagramUrl       String?
+  youtubeUrl         String?
+  linkedinUrl        String?
+  requireEmail       Boolean         @default(true)
+  requirePhone       Boolean         @default(false)
+  accessMode         EventAccessMode @default(TICKETS)
+  organizerId        String
+  organizer          User            @relation(fields: [organizerId], references: [id], onDelete: Cascade)
 
   ticketTypes     TicketType[]
   orders          Order[]
-  faqs        Faq[]
-  discountCodes DiscountCode[]
-  wishlist    Wishlist[]
-  tags        Tag[]
-  gallery    EventGallery[]
-  speakers   Speaker[]
-  followers  EventFollow[]
-  eventStaff EventStaff[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  faqs            Faq[]
+  discountCodes   DiscountCode[]
+  wishlist        Wishlist[]
+  tags            Tag[]
+  gallery         EventGallery[]
+  speakers        Speaker[]
+  followers       EventFollow[]
+  eventStaff      EventStaff[]
+  invites         EventInvite[]
+  guestAdmissions GuestAdmission[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   @@index([slug])
   @@index([category])
@@ -166,22 +215,22 @@ model Event {
 }
 
 model TicketType {
-  id         String    @id @default(cuid())
-  name       String
-  price      Int
-  quantity   Int
-  soldCount  Int       @default(0)
-  groupSize  Int       @default(1)
-  image      String?
-  salesStart DateTime?
-  salesEnd   DateTime?
-  eventId    String
-  event         Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  id            String         @id @default(cuid())
+  name          String
+  price         Int
+  quantity      Int
+  soldCount     Int            @default(0)
+  groupSize     Int            @default(1)
+  image         String?
+  salesStart    DateTime?
+  salesEnd      DateTime?
+  eventId       String
+  event         Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
   tickets       Ticket[]
   discountCodes DiscountCode[]
   deletedAt     DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 }
 
 model Faq {
@@ -196,44 +245,44 @@ model Faq {
 }
 
 model Ticket {
-  id            String     @id @default(cuid())
-  ticketId      String     @unique
-  ticketTypeId  String
-  ticketType    TicketType @relation(fields: [ticketTypeId], references: [id])
-  ownerId       String?
-  owner         User?      @relation(fields: [ownerId], references: [id])
-  orderId       String?
-  order         Order?     @relation(fields: [orderId], references: [id])
-  groupSize     Int        @default(1)
-  checkedInCount Int       @default(0)
-  isUsed        Boolean    @default(false)
-  usedAt        DateTime?
-  usedBy        String?
-  qrCode        String?
-  deletedAt     DateTime?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  checkIns      CheckIn[]
+  id             String     @id @default(cuid())
+  ticketId       String     @unique
+  ticketTypeId   String
+  ticketType     TicketType @relation(fields: [ticketTypeId], references: [id])
+  ownerId        String?
+  owner          User?      @relation(fields: [ownerId], references: [id])
+  orderId        String?
+  order          Order?     @relation(fields: [orderId], references: [id])
+  groupSize      Int        @default(1)
+  checkedInCount Int        @default(0)
+  isUsed         Boolean    @default(false)
+  usedAt         DateTime?
+  usedBy         String?
+  qrCode         String?
+  deletedAt      DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  checkIns       CheckIn[]
 }
 
 model Order {
-  id          String      @id @default(cuid())
-  buyerId     String?
-  buyer       User?       @relation(fields: [buyerId], references: [id])
-  buyerEmail  String?
-  buyerName   String?
-  buyerPhone  String?
-  eventId     String
-  event       Event       @relation(fields: [eventId], references: [id])
-  status      OrderStatus @default(PENDING)
-  amount      Int
-  discountCode    String?
-  discountAmount Int      @default(0)
-  paymentRef  String?
-  paidAt      DateTime?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  tickets     Ticket[]
+  id             String      @id @default(cuid())
+  buyerId        String?
+  buyer          User?       @relation(fields: [buyerId], references: [id])
+  buyerEmail     String?
+  buyerName      String?
+  buyerPhone     String?
+  eventId        String
+  event          Event       @relation(fields: [eventId], references: [id])
+  status         OrderStatus @default(PENDING)
+  amount         Int
+  discountCode   String?
+  discountAmount Int         @default(0)
+  paymentRef     String?
+  paidAt         DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  tickets        Ticket[]
 }
 
 model CheckIn {
@@ -246,19 +295,19 @@ model CheckIn {
 }
 
 model DiscountCode {
-  id            String   @id @default(cuid())
+  id            String      @id @default(cuid())
   code          String
   discountType  String // "percentage" or "fixed"
-  discountValue Int      // in kobo/cents
+  discountValue Int // in kobo/cents
   maxUses       Int?
-  usesCount     Int      @default(0)
+  usesCount     Int         @default(0)
   validUntil    DateTime?
   eventId       String
-  event         Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event         Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
   ticketTypeId  String?
   ticketType    TicketType? @relation(fields: [ticketTypeId], references: [id])
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 
   @@unique([code, eventId])
 }
@@ -269,8 +318,8 @@ model Follow {
   followingId String
   createdAt   DateTime @default(now())
 
-  follower    User     @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
-  following   User     @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+  follower  User @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
 
   @@unique([followerId, followingId])
   @@index([followerId])
@@ -291,19 +340,19 @@ model Wishlist {
 }
 
 model Tag {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  color       String?  @default("#6366f1")
-  events      Event[]
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  name      String   @unique
+  color     String?  @default("#6366f1")
+  events    Event[]
+  createdAt DateTime @default(now())
 }
 
 model EventGallery {
   id        String   @id @default(cuid())
-  image    String
-  caption String?
-  eventId  String
-  event    Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  image     String
+  caption   String?
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 
   @@index([eventId])
@@ -311,14 +360,14 @@ model EventGallery {
 
 model Speaker {
   id        String   @id @default(cuid())
-  name     String
-  bio      String?
-  image    String?
-  title    String?
-  company String?
+  name      String
+  bio       String?
+  image     String?
+  title     String?
+  company   String?
   isVisible Boolean  @default(true)
-  eventId  String
-  event    Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
@@ -327,10 +376,10 @@ model Speaker {
 
 model EventFollow {
   id        String   @id @default(cuid())
-  userId   String
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  eventId  String
-  event    Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 
   @@unique([userId, eventId])
@@ -339,20 +388,110 @@ model EventFollow {
 }
 
 model EventStaff {
-  id           String   @id @default(cuid())
-  eventId      String
-  event        Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role         String   @default("CHECKER")
-  status       String   @default("PENDING")
-  token        String?
-  tokenExpiry  DateTime?
-  invitedAt    DateTime @default(now())
+  id          String    @id @default(cuid())
+  eventId     String
+  event       Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        String    @default("CHECKER")
+  status      String    @default("PENDING")
+  token       String?
+  tokenExpiry DateTime?
+  invitedAt   DateTime  @default(now())
 
   @@unique([eventId, userId])
   @@index([eventId])
   @@index([userId])
+}
+
+model EventInvite {
+  id               String               @id @default(cuid())
+  eventId          String
+  event            Event                @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  name             String
+  description      String?
+  accessMode       InviteAccessMode
+  maxPlusOnes      Int?                 @default(1)
+  maxAttendees     Int?
+  rsvpDeadline     DateTime?
+  formConfig       Json                 @default("{}")
+  customMessage    String?
+  customProperties Json?
+  publicSlug       String               @unique
+  status           InviteStatus         @default(ACTIVE)
+  invitees         EventInvitee[]
+  deliveries       InvitationDelivery[]
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  @@index([eventId])
+  @@index([eventId, status])
+}
+
+model EventInvitee {
+  id               String               @id @default(cuid())
+  inviteId         String
+  invite           EventInvite          @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+  primaryInviteeId String?
+  primaryInvitee   EventInvitee?        @relation("InviteePlusOnes", fields: [primaryInviteeId], references: [id], onDelete: Cascade)
+  plusOnes         EventInvitee[]       @relation("InviteePlusOnes")
+  type             InviteeType          @default(PRIMARY)
+  name             String
+  email            String?
+  phone            String?
+  tokenDigest      String?              @unique
+  accessCodeDigest String?
+  accessCodeLast4  String?
+  expiresAt        DateTime?
+  formResponse     Json?
+  rsvpStatus       RsvpStatus           @default(PENDING)
+  rsvpAt           DateTime?
+  admissionStatus  GuestAdmissionStatus @default(NOT_ADMITTED)
+  admittedAt       DateTime?
+  admissions       GuestAdmission[]
+  deliveries       InvitationDelivery[]
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  @@index([inviteId])
+  @@index([inviteId, rsvpStatus])
+  @@index([inviteId, accessCodeDigest])
+  @@index([primaryInviteeId])
+}
+
+model GuestAdmission {
+  id           String       @id @default(cuid())
+  eventId      String
+  event        Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  inviteeId    String
+  invitee      EventInvitee @relation(fields: [inviteeId], references: [id], onDelete: Cascade)
+  admittedById String?
+  admittedBy   User?        @relation(fields: [admittedById], references: [id], onDelete: SetNull)
+  admittedAt   DateTime     @default(now())
+  method       String       @default("MANUAL")
+  notes        String?
+
+  @@index([eventId])
+  @@index([inviteeId])
+}
+
+model InvitationDelivery {
+  id         String                   @id @default(cuid())
+  inviteId   String
+  invite     EventInvite              @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+  inviteeId  String?
+  invitee    EventInvitee?            @relation(fields: [inviteeId], references: [id], onDelete: Cascade)
+  channel    InvitationChannel
+  recipient  String
+  status     InvitationDeliveryStatus @default(PENDING)
+  providerId String?
+  sentAt     DateTime?
+  error      String?
+  createdAt  DateTime                 @default(now())
+  updatedAt  DateTime                 @updatedAt
+
+  @@index([inviteId])
+  @@index([inviteeId])
 }
 
 model AudienceType {
@@ -370,13 +509,13 @@ model B2BLandingPage {
   subHeadline     String
   targetAudience  String
   intent          String
-  featuresJson   String   @db.Text
+  featuresJson    String   @db.Text
   metaTitle       String
-  metaDescription String  @db.Text
+  metaDescription String   @db.Text
   ctaText         String   @default("Create Your Event")
-  ctaLink        String   @default("/dashboard/events/new")
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  ctaLink         String   @default("/dashboard/events/new")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([slug])
   @@index([targetAudience])
@@ -384,14 +523,14 @@ model B2BLandingPage {
 }
 
 model PayoutRecord {
-  id        String    @id @default(cuid())
+  id        String   @id @default(cuid())
   userId    String
-  user      User      @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
   amount    Int
-  reference String    @unique
-  status    String    @default("success")
+  reference String   @unique
+  status    String   @default("success")
   paidAt    DateTime
-  createdAt DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   @@index([userId])
   @@index([paidAt])

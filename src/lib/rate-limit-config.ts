@@ -21,6 +21,8 @@ const rateLimits: Record<string, RateLimitConfig> = {
   authLogin: { limit: 10, windowMs: 900000 },
   payment: { limit: 20, windowMs: 3600000 },
   upload: { limit: 10, windowMs: 60000 },
+  inviteRsvp: { limit: 20, windowMs: 60000 },
+  guestAdmission: { limit: 15, windowMs: 60000 },
 };
 
 const requestCounts = new Map<string, RequestCount>();

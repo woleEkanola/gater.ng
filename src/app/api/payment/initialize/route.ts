@@ -42,6 +42,10 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      if (event?.accessMode === "INVITES") {
+        return NextResponse.json({ error: "This event uses invitations instead of tickets" }, { status: 400 });
+      }
+
       if (event?.organizer?.paystackSubaccountCode) {
         const feePercent = event.organizer.transactionFeePercent || 5;
         const platformFee = Math.round((amount * feePercent) / 100);

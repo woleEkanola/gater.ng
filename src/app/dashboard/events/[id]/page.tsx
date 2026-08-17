@@ -94,6 +94,17 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
   const [inviteEmail, setInviteEmail] = useState("");
   const [invitePhone, setInvitePhone] = useState("");
   const [invitingStaff, setInvitingStaff] = useState(false);
+  const [inviteGroups, setInviteGroups] = useState<any[]>([]);
+  const [inviteGroupName, setInviteGroupName] = useState("");
+  const [inviteGroupDescription, setInviteGroupDescription] = useState("");
+  const [inviteAccessMode, setInviteAccessMode] = useState<"OPEN_RSVP" | "TOKENIZED">("OPEN_RSVP");
+  const [inviteMaxPlusOnes, setInviteMaxPlusOnes] = useState<number | null>(1);
+  const [inviteMaxAttendees, setInviteMaxAttendees] = useState<number | "">("");
+  const [inviteRequireEmail, setInviteRequireEmail] = useState(true);
+  const [inviteRequirePhone, setInviteRequirePhone] = useState(false);
+  const [invitePlusOneRequireEmail, setInvitePlusOneRequireEmail] = useState(false);
+  const [inviteRows, setInviteRows] = useState("");
+  const [creatingInvite, setCreatingInvite] = useState(false);
   const [deleteTicketTarget, setDeleteTicketTarget] = useState<any>(null);
   const [deletingTicket, setDeletingTicket] = useState(false);
   const [deleteTypeTarget, setDeleteTypeTarget] = useState<any>(null);
@@ -114,6 +125,15 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
       }
     }
     fetchDiscountCodes();
+  }, [eventId]);
+
+  useEffect(() => {
+    async function fetchInvites() {
+      if (!eventId) return;
+      const res = await fetch(`/api/events/${eventId}/invites`);
+      if (res.ok) setInviteGroups(await res.json());
+    }
+    fetchInvites();
   }, [eventId]);
 
   useEffect(() => {
@@ -205,6 +225,56 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
     } catch {
       toast({ title: "Error", description: "Failed to resend invitation", variant: "destructive" });
     }
+  };
+
+  const handleCreateInvite = async () => {
+    if (!inviteGroupName.trim()) {
+      toast({ title: "Error", description: "Invitation name is required", variant: "destructive" });
+      return;
+    }
+    setCreatingInvite(true);
+    try {
+      const invitees = inviteRows.split("\n").map((row) => {
+        const [name, email, phone] = row.split(",").map((value) => value.trim());
+        return name ? { name, email: email || null, phone: phone || null } : null;
+      }).filter(Boolean);
+      const res = await fetch(`/api/events/${eventId}/invites`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: inviteGroupName.trim(),
+          description: inviteGroupDescription.trim() || undefined,
+          accessMode: inviteAccessMode,
+          maxPlusOnes: inviteMaxPlusOnes,
+          maxAttendees: inviteMaxAttendees === "" ? null : inviteMaxAttendees,
+          formConfig: {
+            requireName: true,
+            requireEmail: inviteRequireEmail,
+            requirePhone: inviteRequirePhone,
+            plusOneRequireEmail: invitePlusOneRequireEmail,
+            fields: [],
+          },
+          invitees,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to create invitation");
+      setInviteGroups((groups) => [data, ...groups]);
+      setInviteGroupName("");
+      setInviteGroupDescription("");
+      setInviteRows("");
+      toast({ title: "Invitation created", description: inviteAccessMode === "OPEN_RSVP" ? "Share the public RSVP link with guests." : "Invitations sent to the listed guests." });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setCreatingInvite(false);
+    }
+  };
+
+  const copyInviteLink = async (slug: string) => {
+    const baseUrl = window.location.origin;
+    await navigator.clipboard.writeText(`${baseUrl}/invites/${slug}`);
+    toast({ title: "Copied", description: "Invitation link copied" });
   };
 
   const handleDeleteTicket = async () => {
@@ -1469,6 +1539,31 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
               )}
             </CardContent>
           </Card>
+        )}
+
+        {(event?.accessMode === "INVITES" || event?.accessMode === "BOTH") && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Guest Invitations</CardTitle>
+            <p className="text-sm text-muted-foreground">Create multiple invitation groups for this event. Each group can have its own RSVP rules, plus-one limit, and guest list.</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2"><Label>Invitation group name</Label><Input value={inviteGroupName} onChange={(e) => setInviteGroupName(e.target.value)} placeholder="VIP Guests, General RSVP..." /></div>
+              <div className="space-y-2"><Label>Access</Label><select value={inviteAccessMode} onChange={(e) => setInviteAccessMode(e.target.value as "OPEN_RSVP" | "TOKENIZED")} className="w-full rounded-md border px-3 py-2"><option value="OPEN_RSVP">Open RSVP link</option><option value="TOKENIZED">Private tokenized invites</option></select></div>
+            </div>
+            <div className="space-y-2"><Label>Description</Label><Textarea value={inviteGroupDescription} onChange={(e) => setInviteGroupDescription(e.target.value)} placeholder="Message or context shown to guests" rows={2} /></div>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2"><Label>Plus-ones per guest</Label><select value={inviteMaxPlusOnes === null ? "unlimited" : String(inviteMaxPlusOnes)} onChange={(e) => setInviteMaxPlusOnes(e.target.value === "unlimited" ? null : Number(e.target.value))} className="w-full rounded-md border px-3 py-2"><option value="0">None</option><option value="1">1 (default)</option><option value="2">2</option><option value="3">3</option><option value="unlimited">Unlimited</option></select></div>
+              <div className="space-y-2"><Label>Total attendee limit</Label><Input type="number" min="1" value={inviteMaxAttendees} onChange={(e) => setInviteMaxAttendees(e.target.value === "" ? "" : Number(e.target.value))} placeholder="Unlimited" /></div>
+              <div className="space-y-2"><Label>RSVP fields</Label><div className="space-y-2 rounded-md border p-2 text-sm"><label className="flex items-center gap-2"><input type="checkbox" checked={inviteRequireEmail} onChange={(e) => setInviteRequireEmail(e.target.checked)} /> Require email</label><label className="flex items-center gap-2"><input type="checkbox" checked={inviteRequirePhone} onChange={(e) => setInviteRequirePhone(e.target.checked)} /> Require phone</label><label className="flex items-center gap-2"><input type="checkbox" checked={invitePlusOneRequireEmail} onChange={(e) => setInvitePlusOneRequireEmail(e.target.checked)} /> Require plus-one email</label></div></div>
+            </div>
+            <div className="space-y-2"><Label>Tokenized guest list</Label><Textarea value={inviteRows} onChange={(e) => setInviteRows(e.target.value)} placeholder="For private invites, add one guest per line: Name, email, phone" rows={3} /><p className="text-xs text-muted-foreground">Open RSVP groups can be created without rows and shared by link.</p></div>
+            <Button onClick={handleCreateInvite} disabled={creatingInvite}>{creatingInvite ? "Creating..." : "Create invitation group"}</Button>
+
+            {inviteGroups.length > 0 && <div className="space-y-3 border-t pt-4"><h4 className="font-medium">Invitation groups</h4>{inviteGroups.map((invite) => { const accepted = (invite.invitees || []).filter((guest: any) => guest.rsvpStatus === "ACCEPTED").length; const admitted = (invite.invitees || []).filter((guest: any) => guest.admissionStatus === "ADMITTED").length; return <div key={invite.id} className="rounded-lg border p-3"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-medium">{invite.name}</p><p className="text-xs text-muted-foreground">{invite.accessMode === "OPEN_RSVP" ? "Open RSVP" : "Tokenized"} · {accepted} accepted · {admitted} admitted</p></div><div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => copyInviteLink(invite.publicSlug)}>Copy link</Button><Button variant="outline" size="sm" onClick={async () => { await fetch(`/api/events/${eventId}/invites/${invite.id}/resend`, { method: "POST" }); toast({ title: "Sent", description: "Invitation messages resent" }); }}>Resend</Button></div></div>{invite.invitees?.length > 0 && <div className="mt-3 space-y-1 text-sm">{invite.invitees.map((guest: any) => <div key={guest.id} className="flex justify-between border-t pt-1"><span>{guest.name}</span><span className="text-muted-foreground">{guest.rsvpStatus} · {guest.admissionStatus}</span></div>)}</div>}</div>; })}</div>}
+          </CardContent>
+        </Card>
         )}
 
         <Card>

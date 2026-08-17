@@ -67,6 +67,7 @@ async function getEvent(slug: string) {
       dateTime: true,
       isPublished: true,
       isOnline: true,
+      accessMode: true,
       streamingLink: true,
       category: true,
       targetAudience: true,
@@ -125,11 +126,11 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
   const organizerHasPayout = hasPayoutSettings(event.organizer);
 
   const availableTickets = event.ticketTypes.filter(
-    (tt) => tt.soldCount < tt.quantity && (tt.price === 0 || organizerHasPayout)
+    (tt) => event.accessMode !== "INVITES" && tt.soldCount < tt.quantity && (tt.price === 0 || organizerHasPayout)
   );
 
   const allTicketsHidden = event.ticketTypes.every(
-    (tt) => tt.price > 0 && !organizerHasPayout
+    (tt) => event.accessMode === "INVITES" || (tt.price > 0 && !organizerHasPayout)
   );
 
   const googleMapsUrl = event.latitude && event.longitude
@@ -318,9 +319,16 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
             <div className="space-y-6">
               <Card className="lg:sticky top-4">
                 <CardHeader>
-                  <CardTitle>Tickets</CardTitle>
+                  <CardTitle>{event.accessMode === "INVITES" ? "Invitation event" : "Tickets"}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {event.accessMode === "INVITES" ? (
+                    <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground">This event is managed through invitation links. Open the invitation link you received to RSVP.</p>
+                      <p className="text-xs text-muted-foreground">Your invitation includes your admission QR code and six-digit access code.</p>
+                    </div>
+                  ) : (
+                    <>
                   {allTicketsHidden ? (
                     <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                       <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
@@ -366,6 +374,8 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
                         </div>
                       </div>
                     ))
+                  )}
+                    </>
                   )}
                 </CardContent>
               </Card>
