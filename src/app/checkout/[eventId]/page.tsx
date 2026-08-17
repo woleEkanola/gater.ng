@@ -31,6 +31,7 @@ interface Event {
   ticketTypes: TicketType[];
   requireEmail?: boolean;
   requirePhone?: boolean;
+  accessMode?: "TICKETS" | "INVITES" | "BOTH";
 }
 
 export default function CheckoutPage({ params, searchParams }: { params: Promise<{ eventId: string }>; searchParams: Promise<{ ticketType?: string }> }) {
@@ -60,6 +61,12 @@ export default function CheckoutPage({ params, searchParams }: { params: Promise
         }
 
         setEvent(data);
+
+        if (data.accessMode === "INVITES") {
+          toast({ title: "Invitation event", description: "This event does not sell tickets." });
+          router.push(`/events/${data.slug}`);
+          return;
+        }
 
         if (ticketType) {
           setCart({ [ticketType]: 1 });
@@ -96,8 +103,8 @@ export default function CheckoutPage({ params, searchParams }: { params: Promise
 
   const discountAmount = appliedPromo 
     ? appliedPromo.discountType === "percentage" 
-      ? totalAmount * (appliedPromo.discount / 100 / 100)  // discount stored in kobo
-      : appliedPromo.discount / 100  // divide by 100 to convert from kobo
+      ? totalAmount * (appliedPromo.discount / 100 / 100)  // percentage discount: 10% stored as 1000, gives factor 0.1
+      : appliedPromo.discount  // fixed discount already in kobo
     : 0;
 
   const finalAmount = Math.max(0, totalAmount - discountAmount);

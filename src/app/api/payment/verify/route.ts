@@ -79,6 +79,31 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    const claim = await prisma.order.updateMany({
+      where: { id: orderId, status: "PENDING" },
+      data: { status: "PAID", paymentRef: reference, paidAt: new Date() },
+    });
+
+    if (claim.count === 0) {
+      const updatedOrder = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: { event: { include: { ticketTypes: true, organizer: { select: { name: true, image: true, email: true } } } }, tickets: true },
+      });
+      if (!updatedOrder) {
+        return NextResponse.json({ verified: false, message: "Order not found" });
+      }
+      return NextResponse.json({
+        verified: true,
+        orderId: updatedOrder.id,
+        status: updatedOrder.status,
+        eventTitle: updatedOrder.event.title,
+        amount: updatedOrder.amount,
+        tickets: updatedOrder.tickets.length,
+        buyerEmail: updatedOrder.buyerEmail,
+        email: updatedOrder.buyerEmail,
+      });
+    }
+
     const ticketData = data.data?.metadata?.ticketData || [];
     const buyerId = data.data?.metadata?.buyerId;
 
@@ -105,11 +130,6 @@ export async function POST(request: NextRequest) {
         data: { soldCount: { increment: Number(td.quantity) } },
       });
     }
-
-    await prisma.order.update({
-      where: { id: orderId },
-      data: { status: "PAID", paymentRef: reference, paidAt: new Date() },
-    });
 
     console.log(`Order ${orderId} processed. Created ${tickets.length} tickets.`);
 

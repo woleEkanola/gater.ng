@@ -48,6 +48,15 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ message: "Already processed" });
       }
 
+      const claim = await prisma.order.updateMany({
+        where: { id: orderId, status: "PENDING" },
+        data: { status: "PAID", paymentRef: reference, paidAt: new Date() },
+      });
+
+      if (claim.count === 0) {
+        return NextResponse.json({ message: "Already processed" });
+      }
+
       const tickets: { id: string; ticketId: string; qrCode: string }[] = [];
 
       for (const td of ticketData) {
@@ -70,6 +79,7 @@ export async function POST(request: NextRequest) {
               ticketTypeId: td.ticketTypeId,
               ownerId: buyerId || null,
               orderId,
+              groupSize: ticketType.groupSize,
               qrCode,
             },
           });
@@ -82,15 +92,6 @@ export async function POST(request: NextRequest) {
           data: { soldCount: { increment: td.quantity } },
         });
       }
-
-      await prisma.order.update({
-        where: { id: orderId },
-        data: {
-          status: "PAID",
-          paymentRef: reference,
-          paidAt: new Date(),
-        },
-      });
 
       console.log(`Order ${orderId} paid successfully. Created ${tickets.length} tickets.`);
 

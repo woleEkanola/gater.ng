@@ -25,6 +25,7 @@ import {
   Loader2,
   RotateCcw,
   Banknote,
+  CopyCheck,
 } from "lucide-react";
 import {
   Dialog,
@@ -104,6 +105,16 @@ export default function AdminDashboard() {
   const [resetSalesOpen, setResetSalesOpen] = useState(false);
   const [resettingSales, setResettingSales] = useState(false);
   const [resetEventId, setResetEventId] = useState("");
+  const [cleanupOpen, setCleanupOpen] = useState(false);
+  const [cleanupEventId, setCleanupEventId] = useState("");
+  const [cleanupEventTitle, setCleanupEventTitle] = useState("");
+  const [cleanupTicketTypes, setCleanupTicketTypes] = useState<any[]>([]);
+  const [cleanupTicketTypeId, setCleanupTicketTypeId] = useState("");
+  const [cleanupLoading, setCleanupLoading] = useState(false);
+  const [cleanupScanning, setCleanupScanning] = useState(false);
+  const [cleanupPreview, setCleanupPreview] = useState<any>(null);
+  const [cleanupConfirmOpen, setCleanupConfirmOpen] = useState(false);
+  const [cleanupExecuting, setCleanupExecuting] = useState(false);
   const [settlements, setSettlements] = useState<any[]>([]);
   const [settlementSearch, setSettlementSearch] = useState("");
   const [settlementPage, setSettlementPage] = useState(1);
@@ -349,6 +360,84 @@ export default function AdminDashboard() {
     a.href = url;
     a.download = `transactions-${Date.now()}.csv`;
     a.click();
+  };
+
+  const openCleanup = async (eventId: string, eventTitle: string) => {
+    setCleanupEventId(eventId);
+    setCleanupEventTitle(eventTitle);
+    setCleanupTicketTypeId("");
+    setCleanupPreview(null);
+    setCleanupTicketTypes([]);
+    setCleanupOpen(true);
+    setCleanupLoading(true);
+    try {
+      const res = await fetch(`/api/ticket-types?eventId=${eventId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setCleanupTicketTypes(data);
+      } else {
+        toast({ title: "Error", description: "Failed to load ticket types", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to load ticket types", variant: "destructive" });
+    } finally {
+      setCleanupLoading(false);
+    }
+  };
+
+  const handleCleanupScan = async () => {
+    if (!cleanupTicketTypeId) {
+      toast({ title: "Select a ticket type", variant: "destructive" });
+      return;
+    }
+    setCleanupScanning(true);
+    setCleanupPreview(null);
+    try {
+      const res = await fetch("/api/admin/tickets/cleanup-duplicates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId: cleanupEventId, ticketTypeId: cleanupTicketTypeId, dryRun: true }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setCleanupPreview(data);
+      } else {
+        toast({ title: "Error", description: data.error || "Failed to scan", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Network error", variant: "destructive" });
+    } finally {
+      setCleanupScanning(false);
+    }
+  };
+
+  const handleCleanupExecute = async () => {
+    if (!cleanupTicketTypeId) return;
+    setCleanupExecuting(true);
+    try {
+      const res = await fetch("/api/admin/tickets/cleanup-duplicates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId: cleanupEventId, ticketTypeId: cleanupTicketTypeId, dryRun: false }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast({
+          title: "Duplicates cleaned up",
+          description: `Deleted ${data.deletedTickets} duplicate ticket(s). Sold count corrected from ${data.soldCountBefore} to ${data.soldCountAfter}.`,
+        });
+        setCleanupConfirmOpen(false);
+        setCleanupOpen(false);
+        setCleanupPreview(null);
+        fetchEvents();
+      } else {
+        toast({ title: "Error", description: data.error || "Failed to clean up", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Network error", variant: "destructive" });
+    } finally {
+      setCleanupExecuting(false);
+    }
   };
 
   const fetchSettlements = async () => {
@@ -644,6 +733,13 @@ export default function AdminDashboard() {
                               title="Reset Sales"
                             >
                               <RotateCcw className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => openCleanup(event.id, event.title)}
+                              className="p-2 rounded hover:bg-gray-100 text-purple-600"
+                              title="Cleanup Duplicate Tickets"
+                            >
+                              <CopyCheck className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleDeleteEvent(event.id)}
@@ -958,6 +1054,134 @@ export default function AdminDashboard() {
             <AlertDialogCancel disabled={resettingSales}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleResetSales} disabled={resettingSales} className="bg-orange-600 hover:bg-orange-700">
               {resettingSales ? "Resetting..." : "Reset Sales"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={cleanupOpen} onOpenChange={setCleanupOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Cleanup Duplicate Tickets</DialogTitle>
+            <DialogDescription>
+              {cleanupEventTitle} — find and remove duplicate tickets caused by double-processing.
+            </DialogDescription>
+          </DialogHeader>
+
+          {cleanupLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : !cleanupPreview ? (
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">Ticket Type</label>
+                <select
+                  value={cleanupTicketTypeId}
+                  onChange={(e) => setCleanupTicketTypeId(e.target.value)}
+                  className="w-full mt-1 p-2 border rounded-md"
+                >
+                  <option value="">Select a ticket type...</option>
+                  {cleanupTicketTypes.map((tt: any) => (
+                    <option key={tt.id} value={tt.id}>
+                      {tt.name} — {formatCurrency(tt.price)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Button onClick={handleCleanupScan} disabled={cleanupScanning || !cleanupTicketTypeId}>
+                {cleanupScanning ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Scanning...
+                  </>
+                ) : (
+                  "Scan for Duplicates"
+                )}
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="rounded-md border p-3">
+                <p className="text-sm font-medium">
+                  {cleanupPreview.totalAffectedOrders > 0
+                    ? `Found ${cleanupPreview.totalDuplicates} duplicate ticket(s) across ${cleanupPreview.totalAffectedOrders} order(s).`
+                    : "No duplicates found."}
+                </p>
+                {cleanupPreview.totalSkippedOrders > 0 && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    {cleanupPreview.totalSkippedOrders} order(s) skipped (needs manual review).
+                  </p>
+                )}
+              </div>
+
+              {cleanupPreview.affectedOrders.length > 0 && (
+                <div className="max-h-64 overflow-y-auto border rounded-md">
+                  <table className="w-full text-sm">
+                    <thead className="border-b bg-gray-50">
+                      <tr className="text-left">
+                        <th className="p-2 font-medium">Order</th>
+                        <th className="p-2 font-medium">Buyer</th>
+                        <th className="p-2 font-medium">Found</th>
+                        <th className="p-2 font-medium">To Delete</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {cleanupPreview.affectedOrders.map((o: any) => (
+                        <tr key={o.orderId} className="border-b">
+                          <td className="p-2 font-mono text-xs">{o.orderId}</td>
+                          <td className="p-2">{o.buyerEmail || o.buyerName || "N/A"}</td>
+                          <td className="p-2">{o.ticketsFound}</td>
+                          <td className="p-2 text-rose-600 font-medium">{o.duplicatesToDelete}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {cleanupPreview.ambiguousOrders.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">Skipped orders:</p>
+                  {cleanupPreview.ambiguousOrders.map((o: any) => (
+                    <p key={o.orderId} className="text-xs text-muted-foreground">
+                      <span className="font-mono">{o.orderId}</span> — {o.reason}
+                    </p>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setCleanupPreview(null)}>
+                  Back
+                </Button>
+                {cleanupPreview.totalAffectedOrders > 0 && (
+                  <Button
+                    variant="destructive"
+                    onClick={() => setCleanupConfirmOpen(true)}
+                  >
+                    Clean Up {cleanupPreview.totalDuplicates} Duplicate(s)
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={cleanupConfirmOpen} onOpenChange={setCleanupConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Cleanup</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete {cleanupPreview?.totalDuplicates ?? 0} duplicate ticket(s).
+              The oldest tickets for each order are kept; duplicates are removed and sold counts corrected.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cleanupExecuting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCleanupExecute} disabled={cleanupExecuting} className="bg-purple-600 hover:bg-purple-700">
+              {cleanupExecuting ? "Cleaning up..." : "Confirm Cleanup"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
