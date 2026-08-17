@@ -250,7 +250,7 @@ export default function AdminDashboard() {
       const res = await fetch(`/api/attendees?eventId=${eventId}`);
       if (res.ok) {
         const data = await res.json();
-        setAttendees(data);
+        setAttendees(data.tickets || data);
       }
     } catch {
       setAttendees([]);
