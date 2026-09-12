@@ -105,6 +105,10 @@ export async function POST(
       day: "numeric",
     });
 
+    const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const dayDiff = Math.round((startOfDay(new Date(event.dateTime)) - startOfDay(new Date())) / 86400000);
+    const timing: "today" | "tomorrow" | "soon" = dayDiff <= 0 ? "today" : dayDiff === 1 ? "tomorrow" : "soon";
+
     if (dryRun) {
       return NextResponse.json({
         dryRun: true,
@@ -113,6 +117,7 @@ export async function POST(
         totalRecipients: allRecipients.length,
         totalTickets,
         skippedNoEmail,
+        timing,
         recipients: allRecipients,
       });
     }
@@ -129,10 +134,11 @@ export async function POST(
             eventLocation: event.location || "TBD",
             eventBanner: event.banner,
             organizerName: event.organizer?.name,
-            ticketCount: r.ticketCount,
-            tickets: r.tickets,
-            eventId: event.id,
-          })
+          ticketCount: r.ticketCount,
+          tickets: r.tickets,
+          eventId: event.id,
+          timing,
+        })
         );
         return { ok: result.success, error: result.success ? "" : String((result as { error?: unknown }).error || "Failed to send") };
       } catch (err) {
@@ -159,6 +165,7 @@ export async function POST(
       batch: { offset: start, limit: batchLimit },
       sent,
       failed: failures.length,
+      timing,
       totalRecipients: allRecipients.length,
       batchRecipients: batchRecipients.length,
       totalTickets,

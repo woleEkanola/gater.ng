@@ -533,10 +533,30 @@ interface EventReminderEmailData {
   ticketCount: number;
   tickets: EventReminderTicket[];
   eventId: string;
+  timing?: "today" | "tomorrow" | "soon";
 }
 
 export async function sendEventReminderEmail(data: EventReminderEmailData) {
   const { email, name, eventTitle, eventDate, eventLocation, eventBanner, organizerName, ticketCount, tickets } = data;
+
+  const timing = data.timing || "tomorrow";
+  const timingCopy = {
+    today: {
+      subject: `⏰ Reminder: ${eventTitle} is today!`,
+      header: "⏰ See You Today!",
+      body: "is <strong>today</strong>.",
+    },
+    tomorrow: {
+      subject: `⏰ Reminder: ${eventTitle} is tomorrow!`,
+      header: "⏰ See You Tomorrow!",
+      body: "is <strong>tomorrow</strong>.",
+    },
+    soon: {
+      subject: `⏰ Reminder: ${eventTitle} is almost here!`,
+      header: "⏰ Almost Time!",
+      body: "is coming up <strong>soon</strong>.",
+    },
+  }[timing];
 
   const headerImage = eventBanner || "https://www.hitix.online/og-image.jpg";
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "https://www.hitix.online";
@@ -565,14 +585,14 @@ export async function sendEventReminderEmail(data: EventReminderEmailData) {
       <img src="${headerImage}" alt="${eventTitle}" style="width: 100%; height: 100%; object-fit: cover;" />
       <div style="position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.6));"></div>
       <div style="position: absolute; bottom: 20px; left: 30px; right: 30px;">
-        <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700;">⏰ See You Tomorrow!</h1>
+        <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700;">${timingCopy.header}</h1>
         <p style="color: #ffffff; margin: 5px 0 0; font-size: 16px; opacity: 0.9;">${eventTitle}</p>
       </div>
     </div>
 
     <div style="padding: 30px;">
       <p style="color: #374151; font-size: 16px;">Hi ${name},</p>
-      <p style="color: #374151; font-size: 16px;">This is a friendly reminder that <strong>${eventTitle}</strong> is tomorrow. We can't wait to see you!</p>
+      <p style="color: #374151; font-size: 16px;">This is a friendly reminder that <strong>${eventTitle}</strong> ${timingCopy.body} We can't wait to see you!</p>
 
       <div style="background-color: #f3f4f6; border-radius: 8px; padding: 20px; margin: 20px 0;">
         <h3 style="margin: 0 0 15px 0; color: #111827; font-size: 18px;">Event Details</h3>
@@ -611,7 +631,7 @@ export async function sendEventReminderEmail(data: EventReminderEmailData) {
     const result = await resend.emails.send({
       from: "Hitix <noreply@hitix.online>",
       to: email,
-      subject: `⏰ Reminder: ${eventTitle} is tomorrow!`,
+      subject: timingCopy.subject,
       html: htmlContent,
     });
 
