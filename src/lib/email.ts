@@ -451,6 +451,12 @@ export async function sendInvitationEmail(data: InvitationEmailData) {
   }
 }
 
+interface EventReminderTicket {
+  ticketId: string;
+  ticketType: string;
+  orderId: string;
+}
+
 interface EventReminderEmailData {
   email: string;
   name: string;
@@ -460,17 +466,25 @@ interface EventReminderEmailData {
   eventBanner?: string | null;
   organizerName?: string | null;
   ticketCount: number;
-  orderIds: string[];
+  tickets: EventReminderTicket[];
   eventId: string;
 }
 
 export async function sendEventReminderEmail(data: EventReminderEmailData) {
-  const { email, name, eventTitle, eventDate, eventLocation, eventBanner, organizerName, ticketCount, orderIds, eventId } = data;
+  const { email, name, eventTitle, eventDate, eventLocation, eventBanner, organizerName, ticketCount, tickets } = data;
 
   const headerImage = eventBanner || "https://www.hitix.online/og-image.jpg";
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "https://www.hitix.online";
-  const orderLinks = orderIds
-    .map((orderId) => `<p style="margin: 6px 0; color: #374151; font-size: 14px;">• <a href="${baseUrl}/tickets/${orderId}" style="color: #e11d48; font-weight: 600;">View tickets for order ${orderId}</a></p>`)
+  const ticketCards = tickets
+    .map(
+      (t) => `
+      <div style="text-align: center; margin: 20px 0; padding: 20px; background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); border-radius: 12px; border: 2px solid #d1d5db;">
+        <p style="margin: 0 0 8px; color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">${t.ticketType}</p>
+        <p style="margin: 0; color: #111827; font-size: 32px; font-weight: 900; font-family: 'Courier New', monospace; letter-spacing: 2px;">${t.ticketId}</p>
+        <img src="${getQrCodeUrl(t.ticketId)}" alt="Ticket QR Code" style="width: 180px; height: 180px; border-radius: 8px; border: 2px solid #e5e7eb; margin-top: 12px;" />
+        <p style="margin: 12px 0 0; font-size: 14px;"><a href="${baseUrl}/tickets/${t.orderId}" style="color: #e11d48; font-weight: 600;">View tickets for order ${t.orderId}</a></p>
+      </div>`
+    )
     .join("");
 
   const htmlContent = `
@@ -486,14 +500,14 @@ export async function sendEventReminderEmail(data: EventReminderEmailData) {
       <img src="${headerImage}" alt="${eventTitle}" style="width: 100%; height: 100%; object-fit: cover;" />
       <div style="position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.6));"></div>
       <div style="position: absolute; bottom: 20px; left: 30px; right: 30px;">
-        <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700;">⏰ 24 Hours To Go!</h1>
+        <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700;">⏰ See You Tomorrow!</h1>
         <p style="color: #ffffff; margin: 5px 0 0; font-size: 16px; opacity: 0.9;">${eventTitle}</p>
       </div>
     </div>
 
     <div style="padding: 30px;">
       <p style="color: #374151; font-size: 16px;">Hi ${name},</p>
-      <p style="color: #374151; font-size: 16px;">This is a friendly reminder that <strong>${eventTitle}</strong> starts in about 24 hours. We can't wait to see you!</p>
+      <p style="color: #374151; font-size: 16px;">This is a friendly reminder that <strong>${eventTitle}</strong> is tomorrow. We can't wait to see you!</p>
 
       <div style="background-color: #f3f4f6; border-radius: 8px; padding: 20px; margin: 20px 0;">
         <h3 style="margin: 0 0 15px 0; color: #111827; font-size: 18px;">Event Details</h3>
@@ -504,8 +518,8 @@ export async function sendEventReminderEmail(data: EventReminderEmailData) {
       </div>
 
       <div style="margin: 20px 0;">
-        <h3 style="margin: 0 0 10px 0; color: #111827; font-size: 16px;">Your ticket links</h3>
-        ${orderLinks}
+        <h3 style="margin: 0 0 10px 0; color: #111827; font-size: 16px;">Your tickets — codes & QR codes</h3>
+        ${ticketCards}
       </div>
 
       <div style="background-color: #fef3c7; border-radius: 8px; padding: 15px; margin: 20px 0;">
@@ -532,7 +546,7 @@ export async function sendEventReminderEmail(data: EventReminderEmailData) {
     const result = await resend.emails.send({
       from: "Hitix <noreply@hitix.online>",
       to: email,
-      subject: `⏰ Reminder: ${eventTitle} starts in ~24 hours!`,
+      subject: `⏰ Reminder: ${eventTitle} is tomorrow!`,
       html: htmlContent,
     });
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
@@ -123,6 +123,10 @@ export default function AdminDashboard() {
   const [reminderPreview, setReminderPreview] = useState<any>(null);
   const [reminderConfirmOpen, setReminderConfirmOpen] = useState(false);
   const [reminderExecuting, setReminderExecuting] = useState(false);
+  const [reminderBatchSize, setReminderBatchSize] = useState("50");
+  const [reminderProgress, setReminderProgress] = useState<{ sent: number; failed: number; total: number } | null>(null);
+  const [reminderFailures, setReminderFailures] = useState<{ email: string; error: string }[]>([]);
+  const reminderStopRef = useRef(false);
   const [settlements, setSettlements] = useState<any[]>([]);
   const [settlementSearch, setSettlementSearch] = useState("");
   const [settlementPage, setSettlementPage] = useState(1);
@@ -452,6 +456,10 @@ export default function AdminDashboard() {
     setReminderEventId(eventId);
     setReminderEventTitle(eventTitle);
     setReminderPreview(null);
+    setReminderProgress(null);
+    setReminderFailures([]);
+    setReminderBatchSize("50");
+    reminderStopRef.current = false;
     setReminderOpen(true);
     setReminderLoading(true);
     try {
@@ -474,25 +482,51 @@ export default function AdminDashboard() {
   };
 
   const handleReminderExecute = async () => {
-    if (!reminderEventId) return;
+    if (!reminderEventId || !reminderPreview) return;
+    const total = reminderPreview.totalRecipients as number;
+    const size = reminderBatchSize === "all" ? total : parseInt(reminderBatchSize, 10);
+    reminderStopRef.current = false;
     setReminderExecuting(true);
+    setReminderProgress({ sent: 0, failed: 0, total });
+    setReminderFailures([]);
+    let sent = 0;
+    let failed = 0;
+    const failures: { email: string; error: string }[] = [];
+    let stopped = false;
     try {
-      const res = await fetch(`/api/admin/events/${reminderEventId}/send-reminder`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dryRun: false }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        toast({
-          title: "Reminders sent",
-          description: `Sent ${data.sent} of ${data.totalRecipients} reminder email(s).${data.failed > 0 ? ` ${data.failed} failed.` : ""}${data.skippedNoEmail > 0 ? ` ${data.skippedNoEmail} order(s) skipped (no email).` : ""}`,
+      for (let offset = 0; offset < total; offset += size) {
+        if (reminderStopRef.current) {
+          stopped = true;
+          break;
+        }
+        const res = await fetch(`/api/admin/events/${reminderEventId}/send-reminder`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dryRun: false, offset, limit: size }),
         });
+        const data = await res.json();
+        if (!res.ok) {
+          toast({ title: "Error", description: data.error || `Batch starting at ${offset + 1} failed`, variant: "destructive" });
+          break;
+        }
+        sent += data.sent;
+        failed += data.failed;
+        failures.push(...(data.failures || []));
+        setReminderProgress({ sent, failed, total });
+        setReminderFailures([...failures]);
+        if (offset + size < total) {
+          await new Promise((r) => setTimeout(r, 1000));
+        }
+      }
+      toast({
+        title: stopped ? "Reminder send stopped" : "Reminders sent",
+        description: `Sent ${sent} of ${total} reminder email(s).${failed > 0 ? ` ${failed} failed.` : ""}${reminderPreview.skippedNoEmail > 0 ? ` ${reminderPreview.skippedNoEmail} order(s) skipped (no email).` : ""}`,
+      });
+      if (!stopped) {
         setReminderConfirmOpen(false);
         setReminderOpen(false);
         setReminderPreview(null);
-      } else {
-        toast({ title: "Error", description: data.error || "Failed to send reminders", variant: "destructive" });
+        setReminderProgress(null);
       }
     } catch {
       toast({ title: "Error", description: "Network error", variant: "destructive" });
@@ -805,7 +839,7 @@ export default function AdminDashboard() {
                             <button
                               onClick={() => openReminder(event.id, event.title)}
                               className="p-2 rounded hover:bg-gray-100 text-sky-600"
-                              title="Send 24hr Reminder"
+                              title="Send Reminder (Event Is Tomorrow)"
                             >
                               <Bell className="w-4 h-4" />
                             </button>
@@ -1239,9 +1273,9 @@ export default function AdminDashboard() {
       <Dialog open={reminderOpen} onOpenChange={setReminderOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Send 24hr Reminder</DialogTitle>
+            <DialogTitle>Send Reminder — Event Is Tomorrow</DialogTitle>
             <DialogDescription>
-              {reminderEventTitle} — email all ticket buyers that the event starts in ~24 hours.
+              {reminderEventTitle} — email all ticket buyers that the event is tomorrow.
             </DialogDescription>
           </DialogHeader>
 
@@ -1294,17 +1328,68 @@ export default function AdminDashboard() {
                 </div>
               )}
 
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setReminderOpen(false)}>
-                  Cancel
-                </Button>
-                {reminderPreview.totalRecipients > 0 && (
-                  <Button
-                    onClick={() => setReminderConfirmOpen(true)}
+              {reminderPreview.totalRecipients > 0 && (
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium">Batch size</label>
+                  <select
+                    value={reminderBatchSize}
+                    onChange={(e) => setReminderBatchSize(e.target.value)}
+                    disabled={reminderExecuting}
+                    className="p-2 border rounded-md text-sm"
                   >
-                    <Bell className="w-4 h-4 mr-2" />
-                    Send to {reminderPreview.totalRecipients} Buyer(s)
+                    <option value="25">25 per batch</option>
+                    <option value="50">50 per batch</option>
+                    <option value="100">100 per batch</option>
+                    <option value="all">All at once</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground">
+                    {reminderBatchSize === "all"
+                      ? "Single send"
+                      : `${Math.ceil(reminderPreview.totalRecipients / parseInt(reminderBatchSize, 10))} batch(es)`}
+                  </p>
+                </div>
+              )}
+
+              {reminderProgress && (
+                <div className="space-y-2">
+                  <div className="h-2 w-full rounded-full bg-gray-200">
+                    <div
+                      className="h-2 rounded-full bg-sky-600 transition-all"
+                      style={{ width: `${reminderProgress.total > 0 ? Math.round(((reminderProgress.sent + reminderProgress.failed) / reminderProgress.total) * 100) : 0}%` }}
+                    />
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Sent {reminderProgress.sent} of {reminderProgress.total}
+                    {reminderProgress.failed > 0 && ` (${reminderProgress.failed} failed)`}…
+                  </p>
+                  {reminderFailures.length > 0 && (
+                    <p className="text-xs text-rose-600">
+                      Failed: {reminderFailures.slice(0, 5).map((f) => f.email).join(", ")}
+                      {reminderFailures.length > 5 && ` and ${reminderFailures.length - 5} more`}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2">
+                {reminderExecuting ? (
+                  <Button variant="outline" onClick={() => { reminderStopRef.current = true; }}>
+                    Stop after current batch
                   </Button>
+                ) : (
+                  <>
+                    <Button variant="outline" onClick={() => setReminderOpen(false)}>
+                      Cancel
+                    </Button>
+                    {reminderPreview.totalRecipients > 0 && (
+                      <Button
+                        onClick={() => setReminderConfirmOpen(true)}
+                      >
+                        <Bell className="w-4 h-4 mr-2" />
+                        Send to {reminderPreview.totalRecipients} Buyer(s)
+                      </Button>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -1317,7 +1402,10 @@ export default function AdminDashboard() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm Reminder</AlertDialogTitle>
             <AlertDialogDescription>
-              This will send the 24hr reminder email to {reminderPreview?.totalRecipients ?? 0} buyer(s).
+              This will send the reminder email to {reminderPreview?.totalRecipients ?? 0} buyer(s)
+              {reminderBatchSize !== "all" && reminderPreview
+                ? ` in ${Math.ceil(reminderPreview.totalRecipients / parseInt(reminderBatchSize, 10))} batch(es) of ${reminderBatchSize}`
+                : " all at once"}.
               This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
