@@ -145,9 +145,74 @@ export async function sendTicketEmail(data: TicketEmailData) {
   }
 }
 
-export async function sendBulkTicketEmails(tickets: TicketEmailData[]) {
-  const results = await Promise.allSettled(tickets.map(sendTicketEmail));
+// --- Resend rate-limit-safe bulk sending (10 req/sec key limit) ---
+const RESEND_MAX_CONCURRENCY = 2;
+const RESEND_MIN_SPACING_MS = 250;
+const RESEND_MAX_RETRIES = 3;
+
+function isRateLimitError(error: unknown): boolean {
+  const anyErr = error as Record<string, unknown> | null | undefined;
+  const status = (anyErr?.["statusCode"] ?? anyErr?.["status"]) as unknown;
+  if (status === 429 || status === "429") return true;
+  const haystack = `${String((anyErr as { name?: unknown })?.name ?? "")} ${String((anyErr as { message?: unknown })?.message ?? "")}`;
+  return /rate_limit|too many requests|\b429\b/i.test(haystack);
+}
+
+function getRetryDelayMs(error: unknown, attempt: number): number {
+  const headers = (error as { headers?: unknown })?.headers as
+    | Record<string, unknown>
+    | { get?: (name: string) => unknown }
+    | undefined;
+  const raw =
+    (headers as Record<string, unknown>)?.["retry-after"] ??
+    (typeof (headers as { get?: unknown })?.get === "function"
+      ? (headers as { get: (name: string) => unknown }).get("retry-after")
+      : undefined);
+  const seconds = Number(raw);
+  if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1000;
+  return Math.min(1000 * 2 ** attempt, 8000);
+}
+
+export async function sendWithResendRetry<T>(sendFn: () => Promise<T>): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= RESEND_MAX_RETRIES; attempt++) {
+    try {
+      return await sendFn();
+    } catch (error) {
+      lastError = error;
+      if (!isRateLimitError(error) || attempt === RESEND_MAX_RETRIES) throw error;
+      await new Promise((r) => setTimeout(r, getRetryDelayMs(error, attempt)));
+    }
+  }
+  throw lastError;
+}
+
+export async function mapWithResendThrottle<T, R>(
+  items: T[],
+  fn: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  let lastStart = 0;
+  const workers = Array.from({ length: Math.min(RESEND_MAX_CONCURRENCY, items.length) }, async () => {
+    while (next < items.length) {
+      const index = next++;
+      // Re-check after every sleep: another worker may have started while we waited.
+      for (;;) {
+        const wait = RESEND_MIN_SPACING_MS - (Date.now() - lastStart);
+        if (wait <= 0) break;
+        await new Promise((r) => setTimeout(r, wait));
+      }
+      lastStart = Date.now();
+      results[index] = await fn(items[index], index);
+    }
+  });
+  await Promise.all(workers);
   return results;
+}
+
+export async function sendBulkTicketEmails(tickets: TicketEmailData[]) {
+  return mapWithResendThrottle(tickets, (t) => sendWithResendRetry(() => sendTicketEmail(t)));
 }
 
 export async function sendPasswordResetEmail(email: string, token: string, purpose: "reset-password" | "set-password" = "reset-password") {

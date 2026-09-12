@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { sendEventReminderEmail } from "@/lib/email";
+import { sendEventReminderEmail, sendWithResendRetry, mapWithResendThrottle } from "@/lib/email";
 
 interface ReminderTicket {
   ticketId: string;
@@ -16,21 +16,6 @@ interface ReminderRecipient {
   ticketCount: number;
   orderIds: string[];
   tickets: ReminderTicket[];
-}
-
-const SEND_CONCURRENCY = 5;
-
-async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
-  const results: R[] = new Array(items.length);
-  let next = 0;
-  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (next < items.length) {
-      const index = next++;
-      results[index] = await fn(items[index]);
-    }
-  });
-  await Promise.all(workers);
-  return results;
 }
 
 export async function POST(
@@ -133,20 +118,22 @@ export async function POST(
     }
 
     const batchRecipients = recipients;
-    const results = await mapWithConcurrency(batchRecipients, SEND_CONCURRENCY, async (r) => {
+    const results = await mapWithResendThrottle(batchRecipients, async (r) => {
       try {
-        const result = await sendEventReminderEmail({
-          email: r.email,
-          name: r.name,
-          eventTitle: event.title,
-          eventDate,
-          eventLocation: event.location || "TBD",
-          eventBanner: event.banner,
-          organizerName: event.organizer?.name,
-          ticketCount: r.ticketCount,
-          tickets: r.tickets,
-          eventId: event.id,
-        });
+        const result = await sendWithResendRetry(() =>
+          sendEventReminderEmail({
+            email: r.email,
+            name: r.name,
+            eventTitle: event.title,
+            eventDate,
+            eventLocation: event.location || "TBD",
+            eventBanner: event.banner,
+            organizerName: event.organizer?.name,
+            ticketCount: r.ticketCount,
+            tickets: r.tickets,
+            eventId: event.id,
+          })
+        );
         return { ok: result.success, error: result.success ? "" : String((result as { error?: unknown }).error || "Failed to send") };
       } catch (err) {
         return { ok: false, error: String(err) };
