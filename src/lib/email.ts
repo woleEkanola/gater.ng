@@ -451,6 +451,98 @@ export async function sendInvitationEmail(data: InvitationEmailData) {
   }
 }
 
+interface EventReminderEmailData {
+  email: string;
+  name: string;
+  eventTitle: string;
+  eventDate: string;
+  eventLocation: string;
+  eventBanner?: string | null;
+  organizerName?: string | null;
+  ticketCount: number;
+  orderIds: string[];
+  eventId: string;
+}
+
+export async function sendEventReminderEmail(data: EventReminderEmailData) {
+  const { email, name, eventTitle, eventDate, eventLocation, eventBanner, organizerName, ticketCount, orderIds, eventId } = data;
+
+  const headerImage = eventBanner || "https://www.hitix.online/og-image.jpg";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "https://www.hitix.online";
+  const orderLinks = orderIds
+    .map((orderId) => `<p style="margin: 6px 0; color: #374151; font-size: 14px;">• <a href="${baseUrl}/tickets/${orderId}" style="color: #e11d48; font-weight: 600;">View tickets for order ${orderId}</a></p>`)
+    .join("");
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f9fafb; padding: 20px;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+    <div style="position: relative; height: 200px; overflow: hidden;">
+      <img src="${headerImage}" alt="${eventTitle}" style="width: 100%; height: 100%; object-fit: cover;" />
+      <div style="position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.6));"></div>
+      <div style="position: absolute; bottom: 20px; left: 30px; right: 30px;">
+        <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700;">⏰ 24 Hours To Go!</h1>
+        <p style="color: #ffffff; margin: 5px 0 0; font-size: 16px; opacity: 0.9;">${eventTitle}</p>
+      </div>
+    </div>
+
+    <div style="padding: 30px;">
+      <p style="color: #374151; font-size: 16px;">Hi ${name},</p>
+      <p style="color: #374151; font-size: 16px;">This is a friendly reminder that <strong>${eventTitle}</strong> starts in about 24 hours. We can't wait to see you!</p>
+
+      <div style="background-color: #f3f4f6; border-radius: 8px; padding: 20px; margin: 20px 0;">
+        <h3 style="margin: 0 0 15px 0; color: #111827; font-size: 18px;">Event Details</h3>
+        <p style="margin: 8px 0; color: #374151;"><strong>Date:</strong> ${eventDate}</p>
+        <p style="margin: 8px 0; color: #374151;"><strong>Location:</strong> ${eventLocation}</p>
+        <p style="margin: 8px 0; color: #374151;"><strong>Your tickets:</strong> ${ticketCount}</p>
+        ${organizerName ? `<p style="margin: 8px 0; color: #374151;"><strong>Organized by:</strong> ${organizerName}</p>` : ""}
+      </div>
+
+      <div style="margin: 20px 0;">
+        <h3 style="margin: 0 0 10px 0; color: #111827; font-size: 16px;">Your ticket links</h3>
+        ${orderLinks}
+      </div>
+
+      <div style="background-color: #fef3c7; border-radius: 8px; padding: 15px; margin: 20px 0;">
+        <p style="margin: 0; color: #92400e; font-size: 14px;"><strong>Reminder:</strong> Please bring a printed or digital copy of your ticket QR code. Arrive early to beat the queue.</p>
+      </div>
+
+      <p style="color: #6b7280; font-size: 14px;">
+        Best regards,<br>
+        The Hitix Team
+      </p>
+    </div>
+
+    <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+      <p style="margin: 0; color: #9ca3af; font-size: 12px;">
+        © ${new Date().getFullYear()} Hitix - All rights reserved
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+`;
+
+  try {
+    const result = await resend.emails.send({
+      from: "Hitix <noreply@hitix.online>",
+      to: email,
+      subject: `⏰ Reminder: ${eventTitle} starts in ~24 hours!`,
+      html: htmlContent,
+    });
+
+    return { success: true, data: result };
+  } catch (error) {
+    console.error("Error sending event reminder email:", error);
+    return { success: false, error };
+  }
+}
+
 interface OrganizerSaleEmailData {
   organizerEmail: string;
   organizerName: string;

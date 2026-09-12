@@ -26,6 +26,7 @@ import {
   RotateCcw,
   Banknote,
   CopyCheck,
+  Bell,
 } from "lucide-react";
 import {
   Dialog,
@@ -115,6 +116,13 @@ export default function AdminDashboard() {
   const [cleanupPreview, setCleanupPreview] = useState<any>(null);
   const [cleanupConfirmOpen, setCleanupConfirmOpen] = useState(false);
   const [cleanupExecuting, setCleanupExecuting] = useState(false);
+  const [reminderOpen, setReminderOpen] = useState(false);
+  const [reminderEventId, setReminderEventId] = useState("");
+  const [reminderEventTitle, setReminderEventTitle] = useState("");
+  const [reminderLoading, setReminderLoading] = useState(false);
+  const [reminderPreview, setReminderPreview] = useState<any>(null);
+  const [reminderConfirmOpen, setReminderConfirmOpen] = useState(false);
+  const [reminderExecuting, setReminderExecuting] = useState(false);
   const [settlements, setSettlements] = useState<any[]>([]);
   const [settlementSearch, setSettlementSearch] = useState("");
   const [settlementPage, setSettlementPage] = useState(1);
@@ -440,6 +448,59 @@ export default function AdminDashboard() {
     }
   };
 
+  const openReminder = async (eventId: string, eventTitle: string) => {
+    setReminderEventId(eventId);
+    setReminderEventTitle(eventTitle);
+    setReminderPreview(null);
+    setReminderOpen(true);
+    setReminderLoading(true);
+    try {
+      const res = await fetch(`/api/admin/events/${eventId}/send-reminder`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dryRun: true }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setReminderPreview(data);
+      } else {
+        toast({ title: "Error", description: data.error || "Failed to load recipients", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Network error", variant: "destructive" });
+    } finally {
+      setReminderLoading(false);
+    }
+  };
+
+  const handleReminderExecute = async () => {
+    if (!reminderEventId) return;
+    setReminderExecuting(true);
+    try {
+      const res = await fetch(`/api/admin/events/${reminderEventId}/send-reminder`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dryRun: false }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast({
+          title: "Reminders sent",
+          description: `Sent ${data.sent} of ${data.totalRecipients} reminder email(s).${data.failed > 0 ? ` ${data.failed} failed.` : ""}${data.skippedNoEmail > 0 ? ` ${data.skippedNoEmail} order(s) skipped (no email).` : ""}`,
+        });
+        setReminderConfirmOpen(false);
+        setReminderOpen(false);
+        setReminderPreview(null);
+      } else {
+        toast({ title: "Error", description: data.error || "Failed to send reminders", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Network error", variant: "destructive" });
+    } finally {
+      setReminderExecuting(false);
+    }
+  };
+
   const fetchSettlements = async () => {
     setLoadingSettlements(true);
     try {
@@ -740,6 +801,13 @@ export default function AdminDashboard() {
                               title="Cleanup Duplicate Tickets"
                             >
                               <CopyCheck className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => openReminder(event.id, event.title)}
+                              className="p-2 rounded hover:bg-gray-100 text-sky-600"
+                              title="Send 24hr Reminder"
+                            >
+                              <Bell className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleDeleteEvent(event.id)}
@@ -1167,6 +1235,100 @@ export default function AdminDashboard() {
           )}
         </DialogContent>
       </Dialog>
+
+      <Dialog open={reminderOpen} onOpenChange={setReminderOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Send 24hr Reminder</DialogTitle>
+            <DialogDescription>
+              {reminderEventTitle} — email all ticket buyers that the event starts in ~24 hours.
+            </DialogDescription>
+          </DialogHeader>
+
+          {reminderLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : !reminderPreview ? (
+            <p className="text-muted-foreground text-center py-8">No recipient data.</p>
+          ) : (
+            <div className="space-y-4">
+              <div className="rounded-md border p-3">
+                <p className="text-sm font-medium">
+                  {reminderPreview.totalRecipients > 0
+                    ? `This will email ${reminderPreview.totalRecipients} buyer(s) holding ${reminderPreview.totalTickets} ticket(s).`
+                    : "No buyers with email addresses found for this event."}
+                </p>
+                {reminderPreview.skippedNoEmail > 0 && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    {reminderPreview.skippedNoEmail} order(s) skipped (no email on file).
+                  </p>
+                )}
+              </div>
+
+              {reminderPreview.recipients?.length > 0 && (
+                <div className="max-h-64 overflow-y-auto border rounded-md">
+                  <table className="w-full text-sm">
+                    <thead className="border-b bg-gray-50">
+                      <tr className="text-left">
+                        <th className="p-2 font-medium">Buyer</th>
+                        <th className="p-2 font-medium">Email</th>
+                        <th className="p-2 font-medium">Tickets</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reminderPreview.recipients.slice(0, 100).map((r: any) => (
+                        <tr key={r.email} className="border-b">
+                          <td className="p-2">{r.name}</td>
+                          <td className="p-2">{r.email}</td>
+                          <td className="p-2">{r.ticketCount}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {reminderPreview.recipients.length > 100 && (
+                    <p className="p-2 text-xs text-muted-foreground">
+                      Showing first 100 of {reminderPreview.recipients.length} recipients.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setReminderOpen(false)}>
+                  Cancel
+                </Button>
+                {reminderPreview.totalRecipients > 0 && (
+                  <Button
+                    onClick={() => setReminderConfirmOpen(true)}
+                  >
+                    <Bell className="w-4 h-4 mr-2" />
+                    Send to {reminderPreview.totalRecipients} Buyer(s)
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={reminderConfirmOpen} onOpenChange={setReminderConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Reminder</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will send the 24hr reminder email to {reminderPreview?.totalRecipients ?? 0} buyer(s).
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={reminderExecuting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleReminderExecute} disabled={reminderExecuting} className="bg-sky-600 hover:bg-sky-700">
+              {reminderExecuting ? "Sending..." : "Confirm Send"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={cleanupConfirmOpen} onOpenChange={setCleanupConfirmOpen}>
         <AlertDialogContent>
