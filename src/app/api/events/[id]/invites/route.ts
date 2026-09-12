@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { mapWithResendThrottle } from "@/lib/email";
 import {
   deliverInvitation,
   digestInviteSecret,
@@ -103,13 +104,15 @@ export async function POST(
       rawCredentials.push({ invitee, token, accessCode });
     }
 
-    await Promise.all(rawCredentials.map(({ invitee, token, accessCode }) => deliverInvitation({
-      invite,
-      invitee,
-      event: event!,
-      token,
-      accessCode,
-    })));
+    await mapWithResendThrottle(rawCredentials, ({ invitee, token, accessCode }) =>
+      deliverInvitation({
+        invite,
+        invitee,
+        event: event!,
+        token,
+        accessCode,
+      })
+    );
 
     const created = await prisma.eventInvite.findUnique({
       where: { id: invite.id },

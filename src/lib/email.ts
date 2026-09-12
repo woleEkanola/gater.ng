@@ -145,9 +145,74 @@ export async function sendTicketEmail(data: TicketEmailData) {
   }
 }
 
-export async function sendBulkTicketEmails(tickets: TicketEmailData[]) {
-  const results = await Promise.allSettled(tickets.map(sendTicketEmail));
+// --- Resend rate-limit-safe bulk sending (10 req/sec key limit) ---
+const RESEND_MAX_CONCURRENCY = 2;
+const RESEND_MIN_SPACING_MS = 250;
+const RESEND_MAX_RETRIES = 3;
+
+function isRateLimitError(error: unknown): boolean {
+  const anyErr = error as Record<string, unknown> | null | undefined;
+  const status = (anyErr?.["statusCode"] ?? anyErr?.["status"]) as unknown;
+  if (status === 429 || status === "429") return true;
+  const haystack = `${String((anyErr as { name?: unknown })?.name ?? "")} ${String((anyErr as { message?: unknown })?.message ?? "")}`;
+  return /rate_limit|too many requests|\b429\b/i.test(haystack);
+}
+
+function getRetryDelayMs(error: unknown, attempt: number): number {
+  const headers = (error as { headers?: unknown })?.headers as
+    | Record<string, unknown>
+    | { get?: (name: string) => unknown }
+    | undefined;
+  const raw =
+    (headers as Record<string, unknown>)?.["retry-after"] ??
+    (typeof (headers as { get?: unknown })?.get === "function"
+      ? (headers as { get: (name: string) => unknown }).get("retry-after")
+      : undefined);
+  const seconds = Number(raw);
+  if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1000;
+  return Math.min(1000 * 2 ** attempt, 8000);
+}
+
+export async function sendWithResendRetry<T>(sendFn: () => Promise<T>): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= RESEND_MAX_RETRIES; attempt++) {
+    try {
+      return await sendFn();
+    } catch (error) {
+      lastError = error;
+      if (!isRateLimitError(error) || attempt === RESEND_MAX_RETRIES) throw error;
+      await new Promise((r) => setTimeout(r, getRetryDelayMs(error, attempt)));
+    }
+  }
+  throw lastError;
+}
+
+export async function mapWithResendThrottle<T, R>(
+  items: T[],
+  fn: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  let lastStart = 0;
+  const workers = Array.from({ length: Math.min(RESEND_MAX_CONCURRENCY, items.length) }, async () => {
+    while (next < items.length) {
+      const index = next++;
+      // Re-check after every sleep: another worker may have started while we waited.
+      for (;;) {
+        const wait = RESEND_MIN_SPACING_MS - (Date.now() - lastStart);
+        if (wait <= 0) break;
+        await new Promise((r) => setTimeout(r, wait));
+      }
+      lastStart = Date.now();
+      results[index] = await fn(items[index], index);
+    }
+  });
+  await Promise.all(workers);
   return results;
+}
+
+export async function sendBulkTicketEmails(tickets: TicketEmailData[]) {
+  return mapWithResendThrottle(tickets, (t) => sendWithResendRetry(() => sendTicketEmail(t)));
 }
 
 export async function sendPasswordResetEmail(email: string, token: string, purpose: "reset-password" | "set-password" = "reset-password") {
@@ -468,10 +533,30 @@ interface EventReminderEmailData {
   ticketCount: number;
   tickets: EventReminderTicket[];
   eventId: string;
+  timing?: "today" | "tomorrow" | "soon";
 }
 
 export async function sendEventReminderEmail(data: EventReminderEmailData) {
   const { email, name, eventTitle, eventDate, eventLocation, eventBanner, organizerName, ticketCount, tickets } = data;
+
+  const timing = data.timing || "tomorrow";
+  const timingCopy = {
+    today: {
+      subject: `⏰ Reminder: ${eventTitle} is today!`,
+      header: "⏰ See You Today!",
+      body: "is <strong>today</strong>.",
+    },
+    tomorrow: {
+      subject: `⏰ Reminder: ${eventTitle} is tomorrow!`,
+      header: "⏰ See You Tomorrow!",
+      body: "is <strong>tomorrow</strong>.",
+    },
+    soon: {
+      subject: `⏰ Reminder: ${eventTitle} is almost here!`,
+      header: "⏰ Almost Time!",
+      body: "is coming up <strong>soon</strong>.",
+    },
+  }[timing];
 
   const headerImage = eventBanner || "https://www.hitix.online/og-image.jpg";
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "https://www.hitix.online";
@@ -500,14 +585,14 @@ export async function sendEventReminderEmail(data: EventReminderEmailData) {
       <img src="${headerImage}" alt="${eventTitle}" style="width: 100%; height: 100%; object-fit: cover;" />
       <div style="position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.6));"></div>
       <div style="position: absolute; bottom: 20px; left: 30px; right: 30px;">
-        <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700;">⏰ See You Tomorrow!</h1>
+        <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700;">${timingCopy.header}</h1>
         <p style="color: #ffffff; margin: 5px 0 0; font-size: 16px; opacity: 0.9;">${eventTitle}</p>
       </div>
     </div>
 
     <div style="padding: 30px;">
       <p style="color: #374151; font-size: 16px;">Hi ${name},</p>
-      <p style="color: #374151; font-size: 16px;">This is a friendly reminder that <strong>${eventTitle}</strong> is tomorrow. We can't wait to see you!</p>
+      <p style="color: #374151; font-size: 16px;">This is a friendly reminder that <strong>${eventTitle}</strong> ${timingCopy.body} We can't wait to see you!</p>
 
       <div style="background-color: #f3f4f6; border-radius: 8px; padding: 20px; margin: 20px 0;">
         <h3 style="margin: 0 0 15px 0; color: #111827; font-size: 18px;">Event Details</h3>
@@ -546,7 +631,7 @@ export async function sendEventReminderEmail(data: EventReminderEmailData) {
     const result = await resend.emails.send({
       from: "Hitix <noreply@hitix.online>",
       to: email,
-      subject: `⏰ Reminder: ${eventTitle} is tomorrow!`,
+      subject: timingCopy.subject,
       html: htmlContent,
     });
 

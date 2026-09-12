@@ -839,7 +839,7 @@ export default function AdminDashboard() {
                             <button
                               onClick={() => openReminder(event.id, event.title)}
                               className="p-2 rounded hover:bg-gray-100 text-sky-600"
-                              title="Send Reminder (Event Is Tomorrow)"
+                              title="Send Reminder"
                             >
                               <Bell className="w-4 h-4" />
                             </button>
@@ -1273,9 +1273,14 @@ export default function AdminDashboard() {
       <Dialog open={reminderOpen} onOpenChange={setReminderOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Send Reminder — Event Is Tomorrow</DialogTitle>
+            <DialogTitle>Send Event Reminder</DialogTitle>
             <DialogDescription>
-              {reminderEventTitle} — email all ticket buyers that the event is tomorrow.
+              {reminderEventTitle} — email all ticket buyers
+              {reminderPreview?.timing === "today"
+                ? " that the event is today."
+                : reminderPreview?.timing === "soon"
+                  ? " that the event is coming up soon."
+                  : " that the event is tomorrow."}
             </DialogDescription>
           </DialogHeader>
 
