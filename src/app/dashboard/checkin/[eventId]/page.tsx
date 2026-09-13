@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
 import { Camera, Search, CheckCircle, XCircle, AlertCircle, Users, Mail, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 
-export default function CheckinPage({ params }: { params: { eventId: string } }) {
+export default function CheckinPage({ params }: { params: Promise<{ eventId: string }> }) {
+  const { eventId } = use(params);
   const router = useRouter();
   const { toast } = useToast();
   const [ticketId, setTicketId] = useState("");
@@ -27,6 +28,8 @@ export default function CheckinPage({ params }: { params: { eventId: string } })
   const [attendeeTotal, setAttendeeTotal] = useState(0);
   const [loadingAttendees, setLoadingAttendees] = useState(false);
   const [rowAction, setRowAction] = useState<{ id: string; action: "checkin" | "resend" } | null>(null);
+  const [selectedTickets, setSelectedTickets] = useState<Set<string>>(new Set());
+  const [bulkResending, setBulkResending] = useState(false);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -43,7 +46,7 @@ export default function CheckinPage({ params }: { params: { eventId: string } })
     setLoadingAttendees(true);
     try {
       const query = new URLSearchParams();
-      query.set("eventId", params.eventId);
+      query.set("eventId", eventId);
       query.set("page", page.toString());
       query.set("limit", "20");
       if (search.trim()) query.set("search", search.trim());
@@ -75,7 +78,7 @@ export default function CheckinPage({ params }: { params: { eventId: string } })
       const res = await fetch("/api/checkin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ticketId: ticket.ticketId, eventId: params.eventId, count: 1 }),
+        body: JSON.stringify({ ticketId: ticket.ticketId, eventId, count: 1 }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -116,9 +119,55 @@ export default function CheckinPage({ params }: { params: { eventId: string } })
     }
   };
 
+  const toggleTicketSelection = (ticketId: string) => {
+    setSelectedTickets((prev) => {
+      const next = new Set(prev);
+      if (next.has(ticketId)) {
+        next.delete(ticketId);
+      } else {
+        next.add(ticketId);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedTickets.size === attendees.length) {
+      setSelectedTickets(new Set());
+    } else {
+      setSelectedTickets(new Set(attendees.map((t: any) => t.id)));
+    }
+  };
+
+  const handleBulkResend = async () => {
+    if (selectedTickets.size === 0) return;
+    setBulkResending(true);
+    try {
+      const res = await fetch("/api/tickets/bulk-resend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticketIds: Array.from(selectedTickets) }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast({
+          title: "Bulk resend complete",
+          description: `Sent ${data.success} of ${selectedTickets.size} emails.${data.failed > 0 ? ` ${data.failed} failed.` : ""}`,
+        });
+        setSelectedTickets(new Set());
+      } else {
+        toast({ title: "Error", description: data.error || "Failed to bulk resend", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to bulk resend", variant: "destructive" });
+    } finally {
+      setBulkResending(false);
+    }
+  };
+
   const fetchStats = async () => {
     try {
-      const res = await fetch(`/api/checkin?eventId=${params.eventId}`);
+      const res = await fetch(`/api/checkin?eventId=${eventId}`);
       const data = await res.json();
       if (res.ok) {
         setStats({ 
@@ -145,7 +194,7 @@ export default function CheckinPage({ params }: { params: { eventId: string } })
       const res = await fetch("/api/checkin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ticketId: ticketId.trim(), eventId: params.eventId, count: checkInCount }),
+        body: JSON.stringify({ ticketId: ticketId.trim(), eventId, count: checkInCount }),
       });
 
       const data = await res.json();
@@ -360,10 +409,45 @@ export default function CheckinPage({ params }: { params: { eventId: string } })
                   <p className="text-muted-foreground text-center py-8">No attendees found.</p>
                 ) : (
                   <>
+                    {selectedTickets.size > 0 && (
+                      <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                        <p className="text-sm font-medium">{selectedTickets.size} ticket(s) selected</p>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSelectedTickets(new Set())}
+                            disabled={bulkResending}
+                          >
+                            Clear selection
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={handleBulkResend}
+                            disabled={bulkResending}
+                          >
+                            {bulkResending ? (
+                              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                            ) : (
+                              <Mail className="w-4 h-4 mr-2" />
+                            )}
+                            Resend to selected ({selectedTickets.size})
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                     <div className="border rounded-lg overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead className="border-b bg-muted">
                           <tr>
+                            <th className="p-3 w-10">
+                              <input
+                                type="checkbox"
+                                checked={selectedTickets.size === attendees.length && attendees.length > 0}
+                                onChange={toggleSelectAll}
+                                className="w-4 h-4 rounded border-gray-300"
+                              />
+                            </th>
                             <th className="p-3 text-left font-medium">Ticket</th>
                             <th className="p-3 text-left font-medium">Buyer</th>
                             <th className="p-3 text-left font-medium">Type</th>
@@ -377,8 +461,17 @@ export default function CheckinPage({ params }: { params: { eventId: string } })
                             const checkedIn = ticket.checkedInCount ?? 0;
                             const fullyUsed = ticket.isUsed || checkedIn >= groupSize;
                             const busy = rowAction?.id === ticket.id;
+                            const isSelected = selectedTickets.has(ticket.id);
                             return (
-                              <tr key={ticket.id} className="border-b last:border-0 hover:bg-muted/50">
+                              <tr key={ticket.id} className={`border-b last:border-0 hover:bg-muted/50 ${isSelected ? "bg-blue-50" : ""}`}>
+                                <td className="p-3">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => toggleTicketSelection(ticket.id)}
+                                    className="w-4 h-4 rounded border-gray-300"
+                                  />
+                                </td>
                                 <td className="p-3 font-mono text-xs">{ticket.ticketId}</td>
                                 <td className="p-3">{ticket.order?.buyerName || ticket.order?.buyerEmail || ticket.owner?.name || ticket.owner?.email || "N/A"}</td>
                                 <td className="p-3">{ticket.ticketType?.name || "—"}</td>

@@ -35,7 +35,17 @@ export async function GET(request: NextRequest) {
       where: { id: eventId },
     });
 
-    if (!event || (event.organizerId !== user.id && user.role !== "ADMIN" && user.role !== "SUPERADMIN")) {
+    if (!event) {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+
+    const isOrganizer = event.organizerId === user.id;
+    const isAdmin = user.role === "ADMIN" || user.role === "SUPERADMIN";
+    const isStaff = await prisma.eventStaff.findFirst({
+      where: { eventId, userId: user.id, status: "ACTIVE" },
+    });
+
+    if (!isOrganizer && !isAdmin && !isStaff) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
