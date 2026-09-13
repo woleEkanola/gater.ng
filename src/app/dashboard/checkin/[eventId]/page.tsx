@@ -49,19 +49,13 @@ export default function CheckinPage({ params }: { params: Promise<{ eventId: str
   }, [activeTab, attendeePage]);
 
   useEffect(() => {
-    if (activeTab === "attendees") {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-      searchTimeoutRef.current = setTimeout(() => {
-        fetchAttendees(1, attendeeSearch);
-      }, 300);
-      return () => {
-        if (searchTimeoutRef.current) {
-          clearTimeout(searchTimeoutRef.current);
-        }
-      };
-    }
+    if (activeTab !== "attendees") return;
+
+    const timeout = setTimeout(() => {
+      fetchAttendees(1, attendeeSearch);
+    }, 300);
+
+    return () => clearTimeout(timeout);
   }, [attendeeSearch, activeTab]);
 
   const fetchAttendees = async (page = attendeePage, search = attendeeSearch) => {
@@ -179,16 +173,32 @@ export default function CheckinPage({ params }: { params: Promise<{ eventId: str
     }
   };
 
-  const startScanner = useCallback(async () => {
-    if (isScanningRef.current) return;
+  const startScanner = () => {
+    setScannerError(null);
+    setIsScanning(true);
+  };
+
+  const stopScanner = useCallback(() => {
+    if (scannerRef.current && isScanningRef.current) {
+      scannerRef.current.stop().then(() => {
+        scannerRef.current?.clear();
+      }).catch(() => {});
+      scannerRef.current = null;
+      isScanningRef.current = false;
+      setIsScanning(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isScanning || isScanningRef.current) return;
+
+    let html5QrCode: Html5Qrcode | null = null;
     try {
-      const html5QrCode = new Html5Qrcode("qr-reader-dashboard");
+      html5QrCode = new Html5Qrcode("qr-reader-dashboard");
       scannerRef.current = html5QrCode;
       isScanningRef.current = true;
-      setIsScanning(true);
-      setScannerError(null);
 
-      await html5QrCode.start(
+      html5QrCode.start(
         { facingMode: "environment" },
         { fps: 10, qrbox: { width: 250, height: 250 } },
         (decodedText) => {
@@ -202,24 +212,27 @@ export default function CheckinPage({ params }: { params: Promise<{ eventId: str
           setTimeout(() => handleCheckIn(), 100);
         },
         () => {}
-      );
+      ).catch(() => {
+        setScannerError("Camera not available. Use manual entry instead.");
+        isScanningRef.current = false;
+        setIsScanning(false);
+      });
     } catch {
       setScannerError("Camera not available. Use manual entry instead.");
       isScanningRef.current = false;
       setIsScanning(false);
     }
-  }, []);
 
-  const stopScanner = useCallback(() => {
-    if (scannerRef.current && isScanningRef.current) {
-      scannerRef.current.stop().then(() => {
-        scannerRef.current?.clear();
-      }).catch(() => {});
-      scannerRef.current = null;
-      isScanningRef.current = false;
-      setIsScanning(false);
-    }
-  }, []);
+    return () => {
+      if (html5QrCode && isScanningRef.current) {
+        html5QrCode.stop().then(() => {
+          html5QrCode?.clear();
+        }).catch(() => {});
+        scannerRef.current = null;
+        isScanningRef.current = false;
+      }
+    };
+  }, [isScanning]);
 
   const fetchStats = async () => {
     try {
