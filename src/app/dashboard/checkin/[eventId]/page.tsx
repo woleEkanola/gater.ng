@@ -6,8 +6,9 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
-import { Camera, Search, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { Camera, Search, CheckCircle, XCircle, AlertCircle, Users, Mail, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function CheckinPage({ params }: { params: { eventId: string } }) {
   const router = useRouter();
@@ -18,11 +19,102 @@ export default function CheckinPage({ params }: { params: { eventId: string } })
   const [isLoading, setIsLoading] = useState(false);
   const [stats, setStats] = useState({ totalTickets: 0, totalAdmissions: 0, checkedIn: 0 });
   const inputRef = useRef<HTMLInputElement>(null);
+  const [activeTab, setActiveTab] = useState("scan");
+  const [attendees, setAttendees] = useState<any[]>([]);
+  const [attendeeSearch, setAttendeeSearch] = useState("");
+  const [attendeePage, setAttendeePage] = useState(1);
+  const [attendeeTotalPages, setAttendeeTotalPages] = useState(1);
+  const [attendeeTotal, setAttendeeTotal] = useState(0);
+  const [loadingAttendees, setLoadingAttendees] = useState(false);
+  const [rowAction, setRowAction] = useState<{ id: string; action: "checkin" | "resend" } | null>(null);
 
   useEffect(() => {
     inputRef.current?.focus();
     fetchStats();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === "attendees") {
+      fetchAttendees();
+    }
+  }, [activeTab, attendeePage]);
+
+  const fetchAttendees = async (page = attendeePage, search = attendeeSearch) => {
+    setLoadingAttendees(true);
+    try {
+      const query = new URLSearchParams();
+      query.set("eventId", params.eventId);
+      query.set("page", page.toString());
+      query.set("limit", "20");
+      if (search.trim()) query.set("search", search.trim());
+      const res = await fetch(`/api/attendees?${query}`);
+      if (res.ok) {
+        const data = await res.json();
+        setAttendees(data.tickets || data);
+        setAttendeeTotal(data.total ?? (data.tickets || data).length);
+        setAttendeeTotalPages(data.totalPages || 1);
+      }
+    } catch (error) {
+      console.error("Failed to fetch attendees:", error);
+    } finally {
+      setLoadingAttendees(false);
+    }
+  };
+
+  const handleAttendeeSearch = () => {
+    if (attendeePage === 1) {
+      fetchAttendees(1, attendeeSearch);
+    } else {
+      setAttendeePage(1);
+    }
+  };
+
+  const handleRowCheckIn = async (ticket: any) => {
+    setRowAction({ id: ticket.id, action: "checkin" });
+    try {
+      const res = await fetch("/api/checkin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticketId: ticket.ticketId, eventId: params.eventId, count: 1 }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setAttendees((prev) =>
+          prev.map((t) =>
+            t.id === ticket.id
+              ? { ...t, checkedInCount: data.checkedInCount, isUsed: data.checkedInCount >= data.groupSize }
+              : t
+          )
+        );
+        toast({ title: "Checked in", description: `${ticket.ticketId} (${data.checkedInCount}/${data.groupSize})` });
+        fetchStats();
+      } else {
+        toast({ title: "Check-in failed", description: data.error || "Failed to check in", variant: "destructive" });
+        fetchAttendees();
+      }
+    } catch {
+      toast({ title: "Error", description: "Check-in failed", variant: "destructive" });
+    } finally {
+      setRowAction(null);
+    }
+  };
+
+  const handleRowResend = async (ticket: any) => {
+    setRowAction({ id: ticket.id, action: "resend" });
+    try {
+      const res = await fetch(`/api/tickets/${ticket.id}/resend`, { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: "Email sent", description: `Ticket email resent to ${data.email}` });
+      } else {
+        toast({ title: "Error", description: data.error || "Failed to resend email", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to resend email", variant: "destructive" });
+    } finally {
+      setRowAction(null);
+    }
+  };
 
   const fetchStats = async () => {
     try {
@@ -98,10 +190,10 @@ export default function CheckinPage({ params }: { params: { eventId: string } })
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-xl">
+      <main className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="mb-8">
           <h1 className="text-2xl font-bold mb-2">Event Check-in</h1>
-          <p className="text-muted-foreground">Scan tickets or enter ticket ID manually</p>
+          <p className="text-muted-foreground">Scan tickets, enter ticket IDs manually, or work from the attendee list</p>
         </div>
 
         <div className="grid grid-cols-3 gap-4 mb-8">
@@ -125,6 +217,19 @@ export default function CheckinPage({ params }: { params: { eventId: string } })
           </Card>
         </div>
 
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="mb-6">
+            <TabsTrigger value="scan" className="flex items-center gap-2">
+              <Camera className="w-4 h-4" />
+              Scan
+            </TabsTrigger>
+            <TabsTrigger value="attendees" className="flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              Attendees{attendeeTotal > 0 ? ` (${attendeeTotal})` : ""}
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="scan">
         <Card className="mb-6">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -223,6 +328,138 @@ export default function CheckinPage({ params }: { params: { eventId: string } })
             </CardContent>
           </Card>
         )}
+          </TabsContent>
+
+          <TabsContent value="attendees">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  Attendee List
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex gap-2">
+                  <Input
+                    value={attendeeSearch}
+                    onChange={(e) => setAttendeeSearch(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleAttendeeSearch(); }}
+                    placeholder="Search name, email, or ticket ID..."
+                  />
+                  <Button onClick={handleAttendeeSearch} variant="outline" disabled={loadingAttendees}>
+                    <Search className="w-4 h-4 mr-2" />
+                    Search
+                  </Button>
+                </div>
+
+                {loadingAttendees && attendees.length === 0 ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : attendees.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">No attendees found.</p>
+                ) : (
+                  <>
+                    <div className="border rounded-lg overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="border-b bg-muted">
+                          <tr>
+                            <th className="p-3 text-left font-medium">Ticket</th>
+                            <th className="p-3 text-left font-medium">Buyer</th>
+                            <th className="p-3 text-left font-medium">Type</th>
+                            <th className="p-3 text-left font-medium">Status</th>
+                            <th className="p-3 text-right font-medium">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {attendees.map((ticket: any) => {
+                            const groupSize = ticket.ticketType?.groupSize ?? 1;
+                            const checkedIn = ticket.checkedInCount ?? 0;
+                            const fullyUsed = ticket.isUsed || checkedIn >= groupSize;
+                            const busy = rowAction?.id === ticket.id;
+                            return (
+                              <tr key={ticket.id} className="border-b last:border-0 hover:bg-muted/50">
+                                <td className="p-3 font-mono text-xs">{ticket.ticketId}</td>
+                                <td className="p-3">{ticket.order?.buyerName || ticket.order?.buyerEmail || ticket.owner?.name || ticket.owner?.email || "N/A"}</td>
+                                <td className="p-3">{ticket.ticketType?.name || "—"}</td>
+                                <td className="p-3">
+                                  {fullyUsed ? (
+                                    <span className="text-green-600 font-medium">Used</span>
+                                  ) : checkedIn > 0 ? (
+                                    <span className="text-yellow-600 font-medium">{checkedIn}/{groupSize}</span>
+                                  ) : (
+                                    <span className="text-muted-foreground">Not used</span>
+                                  )}
+                                </td>
+                                <td className="p-3">
+                                  <div className="flex gap-2 justify-end">
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleRowCheckIn(ticket)}
+                                      disabled={busy || fullyUsed}
+                                      title={fullyUsed ? "Fully checked in" : "Check in 1 admission"}
+                                    >
+                                      {busy && rowAction?.action === "checkin" ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                      ) : (
+                                        <CheckCircle className="w-4 h-4 mr-1" />
+                                      )}
+                                      Check in
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleRowResend(ticket)}
+                                      disabled={busy}
+                                      title="Resend ticket email"
+                                    >
+                                      {busy && rowAction?.action === "resend" ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                      ) : (
+                                        <Mail className="w-4 h-4 mr-1" />
+                                      )}
+                                      Resend email
+                                    </Button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {attendeeTotalPages > 1 && (
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-muted-foreground">
+                          Page {attendeePage} of {attendeeTotalPages} ({attendeeTotal} total)
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={attendeePage <= 1 || loadingAttendees}
+                            onClick={() => setAttendeePage((p) => Math.max(1, p - 1))}
+                          >
+                            <ChevronLeft className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={attendeePage >= attendeeTotalPages || loadingAttendees}
+                            onClick={() => setAttendeePage((p) => Math.min(attendeeTotalPages, p + 1))}
+                          >
+                            <ChevronRight className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );

@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
       prisma.ticket.findMany({
         where,
         include: {
-          ticketType: { select: { name: true } },
+          ticketType: { select: { name: true, groupSize: true } },
           owner: { select: { email: true, name: true } },
           order: { select: { discountCode: true, buyerName: true, buyerEmail: true, buyerPhone: true, paidAt: true, amount: true } },
         },
