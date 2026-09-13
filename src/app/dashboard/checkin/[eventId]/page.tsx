@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, use } from "react";
+import { useState, useRef, useEffect, use, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
-import { Camera, Search, CheckCircle, XCircle, AlertCircle, Users, Mail, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Camera, Search, CheckCircle, XCircle, AlertCircle, Users, Mail, Loader2, ChevronLeft, ChevronRight, ScanLine } from "lucide-react";
+import { Html5Qrcode } from "html5-qrcode";
 
 export default function CheckinPage({ params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = use(params);
@@ -30,6 +31,11 @@ export default function CheckinPage({ params }: { params: Promise<{ eventId: str
   const [rowAction, setRowAction] = useState<{ id: string; action: "checkin" | "resend" } | null>(null);
   const [selectedTickets, setSelectedTickets] = useState<Set<string>>(new Set());
   const [bulkResending, setBulkResending] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scannerError, setScannerError] = useState<string | null>(null);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const isScanningRef = useRef(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -41,6 +47,22 @@ export default function CheckinPage({ params }: { params: Promise<{ eventId: str
       fetchAttendees();
     }
   }, [activeTab, attendeePage]);
+
+  useEffect(() => {
+    if (activeTab === "attendees") {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+      searchTimeoutRef.current = setTimeout(() => {
+        fetchAttendees(1, attendeeSearch);
+      }, 300);
+      return () => {
+        if (searchTimeoutRef.current) {
+          clearTimeout(searchTimeoutRef.current);
+        }
+      };
+    }
+  }, [attendeeSearch, activeTab]);
 
   const fetchAttendees = async (page = attendeePage, search = attendeeSearch) => {
     setLoadingAttendees(true);
@@ -61,14 +83,6 @@ export default function CheckinPage({ params }: { params: Promise<{ eventId: str
       console.error("Failed to fetch attendees:", error);
     } finally {
       setLoadingAttendees(false);
-    }
-  };
-
-  const handleAttendeeSearch = () => {
-    if (attendeePage === 1) {
-      fetchAttendees(1, attendeeSearch);
-    } else {
-      setAttendeePage(1);
     }
   };
 
@@ -164,6 +178,48 @@ export default function CheckinPage({ params }: { params: Promise<{ eventId: str
       setBulkResending(false);
     }
   };
+
+  const startScanner = useCallback(async () => {
+    if (isScanningRef.current) return;
+    try {
+      const html5QrCode = new Html5Qrcode("qr-reader-dashboard");
+      scannerRef.current = html5QrCode;
+      isScanningRef.current = true;
+      setIsScanning(true);
+      setScannerError(null);
+
+      await html5QrCode.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        (decodedText) => {
+          try {
+            const parsed = JSON.parse(decodedText);
+            setTicketId(parsed.ticketId || decodedText);
+          } catch {
+            setTicketId(decodedText);
+          }
+          stopScanner();
+          setTimeout(() => handleCheckIn(), 100);
+        },
+        () => {}
+      );
+    } catch {
+      setScannerError("Camera not available. Use manual entry instead.");
+      isScanningRef.current = false;
+      setIsScanning(false);
+    }
+  }, []);
+
+  const stopScanner = useCallback(() => {
+    if (scannerRef.current && isScanningRef.current) {
+      scannerRef.current.stop().then(() => {
+        scannerRef.current?.clear();
+      }).catch(() => {});
+      scannerRef.current = null;
+      isScanningRef.current = false;
+      setIsScanning(false);
+    }
+  }, []);
 
   const fetchStats = async () => {
     try {
@@ -312,6 +368,33 @@ export default function CheckinPage({ params }: { params: Promise<{ eventId: str
             <p className="text-xs text-muted-foreground">
               Enter number of people to check in (for group tickets)
             </p>
+
+            <div className="pt-4 border-t">
+              {!isScanning ? (
+                <Button
+                  onClick={startScanner}
+                  variant="outline"
+                  className="w-full"
+                >
+                  <ScanLine className="w-4 h-4 mr-2" />
+                  Scan QR Code
+                </Button>
+              ) : (
+                <div className="space-y-3">
+                  <div id="qr-reader-dashboard" className="w-full max-w-sm mx-auto"></div>
+                  <Button
+                    onClick={stopScanner}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    Stop Scanner
+                  </Button>
+                </div>
+              )}
+              {scannerError && (
+                <p className="text-sm text-amber-600 mt-2">{scannerError}</p>
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -388,17 +471,17 @@ export default function CheckinPage({ params }: { params: Promise<{ eventId: str
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex gap-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     value={attendeeSearch}
                     onChange={(e) => setAttendeeSearch(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") handleAttendeeSearch(); }}
                     placeholder="Search name, email, or ticket ID..."
+                    className="pl-10"
                   />
-                  <Button onClick={handleAttendeeSearch} variant="outline" disabled={loadingAttendees}>
-                    <Search className="w-4 h-4 mr-2" />
-                    Search
-                  </Button>
+                  {loadingAttendees && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+                  )}
                 </div>
 
                 {loadingAttendees && attendees.length === 0 ? (
